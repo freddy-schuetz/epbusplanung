@@ -1,3 +1,5 @@
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from './StatusBadge';
 import { Trip } from '@/types/bus';
@@ -9,13 +11,33 @@ interface TripCardProps {
 }
 
 export const TripCard = ({ trip, isSelected, onToggleSelection }: TripCardProps) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: trip.id,
+    data: {
+      trip,
+    },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
+  };
+
   return (
-    <div className="bg-card border-2 border-border rounded-lg overflow-hidden transition-all hover:shadow-md">
-      <div className="p-4 flex items-center gap-4 cursor-pointer">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="bg-card border-2 border-border rounded-lg overflow-hidden transition-all hover:shadow-md"
+    >
+      <div className="p-4 flex items-center gap-4">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelection(trip.id)}
           className="w-5 h-5"
+          onClick={(e) => e.stopPropagation()}
         />
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-3 flex-wrap">

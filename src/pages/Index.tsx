@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent } from '@dnd-kit/core';
 import { StatsCard } from '@/components/StatsCard';
 import { ControlBar } from '@/components/ControlBar';
 import { DateRow } from '@/components/DateRow';
+import { TripCard } from '@/components/TripCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Trip, Stop, APIResponse, APIBooking } from '@/types/bus';
@@ -29,6 +31,7 @@ const Index = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDirection, setFilterDirection] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
+  const [activeDragTrip, setActiveDragTrip] = useState<Trip | null>(null);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -450,6 +453,65 @@ const Index = () => {
     }
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const draggedTrip = trips.find(t => t.id === event.active.id);
+    if (draggedTrip) {
+      setActiveDragTrip(draggedTrip);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragTrip(null);
+
+    if (!over || !over.id.toString().startsWith('dropzone-')) {
+      return;
+    }
+
+    // Get the dragged trip
+    const draggedTrip = trips.find(t => t.id === active.id);
+    if (!draggedTrip || !user) {
+      return;
+    }
+
+    // Check if dragged trip is selected
+    const tripsToGroup = selectedTrips.has(draggedTrip.id)
+      ? trips.filter(t => selectedTrips.has(t.id))
+      : [draggedTrip];
+
+    // Only allow ungrouped trips
+    const ungroupedTrips = tripsToGroup.filter(t => !t.groupId);
+    if (ungroupedTrips.length === 0) {
+      toast.error('Nur ungeplante Reisen können gruppiert werden');
+      return;
+    }
+
+    try {
+      const groupId = crypto.randomUUID();
+
+      // Create the bus_group first
+      await createBusGroup({ 
+        id: groupId,
+        status: 'draft' 
+      }, user.id);
+
+      // Update all trips with the group_id
+      for (const trip of ungroupedTrips) {
+        await updateTrip(trip.id, { 
+          groupId,
+          planningStatus: 'draft'
+        });
+      }
+
+      clearSelection();
+      await loadAllData();
+      toast.success(`${ungroupedTrips.length} Reise(n) zur Busplanung hinzugefügt`);
+    } catch (error) {
+      console.error('[Index] Error creating group from drag:', error);
+      toast.error('Fehler beim Erstellen der Busplanung');
+    }
+  };
+
   // Organize data by date
   const organizedData = () => {
     const allDates = new Set<string>();
@@ -523,7 +585,8 @@ const Index = () => {
   console.log('[Index] Rendering main app for user:', user.email);
 
   return (
-    <div className="min-h-screen p-5">
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="min-h-screen p-5">
       <div className="max-w-[1800px] mx-auto bg-card/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-5xl font-bold gradient-primary bg-clip-text text-transparent">
@@ -614,6 +677,17 @@ const Index = () => {
         </div>
       </div>
     </div>
+      
+      <DragOverlay>
+        {activeDragTrip ? (
+          <TripCard
+            trip={activeDragTrip}
+            isSelected={selectedTrips.has(activeDragTrip.id)}
+            onToggleSelection={() => {}}
+          />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 

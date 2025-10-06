@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GroupCard } from './GroupCard';
 import { TripCard } from './TripCard';
+import { DropZone } from './DropZone';
 import { Trip } from '@/types/bus';
 
 interface DateRowProps {
@@ -67,26 +68,30 @@ export const DateRow = ({
 
       {isExpanded && (
         <>
-          {plannedGroups.length > 0 && (
-            <div className="bg-primary/5 p-4 border-b-2 border-primary/20">
-              <div className="text-primary font-semibold text-xs uppercase mb-3">
-                🚌 Geplante Busfahrten
-              </div>
-              {plannedGroups.map(group => (
-                <GroupCard
-                  key={group.groupId}
-                  groupId={group.groupId}
-                  trips={group.trips}
-                  onUpdateGroup={onUpdateGroup}
-                  onCompleteGroup={onCompleteGroup}
-                  onSetGroupToDraft={onSetGroupToDraft}
-                  onLockGroup={onLockGroup}
-                  onUnlockGroup={onUnlockGroup}
-                  onDissolveGroup={onDissolveGroup}
-                />
-              ))}
-            </div>
-          )}
+          <div className="bg-primary/5 p-4 border-b-2 border-primary/20">
+            <DropZone id={`dropzone-${date}`} label="🚌 Neue Busplanung erstellen" />
+            
+            {plannedGroups.length > 0 && (
+              <>
+                <div className="text-primary font-semibold text-xs uppercase mb-3">
+                  🚌 Geplante Busfahrten
+                </div>
+                {plannedGroups.map(group => (
+                  <GroupCard
+                    key={group.groupId}
+                    groupId={group.groupId}
+                    trips={group.trips}
+                    onUpdateGroup={onUpdateGroup}
+                    onCompleteGroup={onCompleteGroup}
+                    onSetGroupToDraft={onSetGroupToDraft}
+                    onLockGroup={onLockGroup}
+                    onUnlockGroup={onUnlockGroup}
+                    onDissolveGroup={onDissolveGroup}
+                  />
+                ))}
+              </>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5 bg-muted/30">
             <div className="bg-card rounded-lg p-4 border">
