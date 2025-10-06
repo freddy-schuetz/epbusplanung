@@ -20,13 +20,14 @@ export const fetchBuses = async () => {
   })) as Bus[];
 };
 
-// Trips
+// Trips - Only fetch PLANNED trips from Supabase
 export const fetchTrips = async (userId: string) => {
   const { data, error } = await supabase
     .from('trips')
     .select('*')
     .eq('user_id', userId)
-    .order('date', { ascending: true });
+    .neq('status', 'unplanned')
+    .order('datum', { ascending: true });
   
   if (error) throw error;
   return data as unknown as Trip[];

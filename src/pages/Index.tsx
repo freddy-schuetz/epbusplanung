@@ -37,18 +37,18 @@ const Index = () => {
       console.log('[Index] No user found, redirecting to auth');
       navigate('/auth');
     } else if (!authLoading && user) {
-      console.log('[Index] User authenticated, loading trips');
+      console.log('[Index] User authenticated, loading data');
     }
   }, [user, authLoading, navigate]);
 
-  // Load trips from Supabase
+  // Load data when user is available
   useEffect(() => {
     if (user) {
-      loadTripsFromSupabase();
+      loadAllData();
     }
   }, [user]);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions for PLANNED trips only
   useEffect(() => {
     if (!user) return;
 
@@ -58,7 +58,8 @@ const Index = () => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'trips', filter: `user_id=eq.${user.id}` },
         () => {
-          loadTripsFromSupabase();
+          console.log('[Index] Realtime update detected, reloading data');
+          loadAllData();
         }
       )
       .subscribe();
@@ -73,17 +74,40 @@ const Index = () => {
     applyFilters();
   }, [trips, filterStatus, filterDirection]);
 
-  const loadTripsFromSupabase = async () => {
-    if (!user) {
-      console.log('[Index] Cannot load trips - no user');
-      return;
-    }
+  const loadAllData = async () => {
+    if (!user) return;
     
-    console.log('[Index] Loading trips from Supabase for user:', user.email);
+    console.log('[Index] Loading all data - planned from Supabase, unplanned from API');
+    setIsLoading(true);
+    
+    try {
+      // Load PLANNED trips from Supabase
+      const plannedTrips = await loadPlannedTripsFromSupabase();
+      console.log('[Index] Loaded planned trips from Supabase:', plannedTrips.length);
+      
+      // Load UNPLANNED trips from API
+      const unplannedTrips = await loadUnplannedTripsFromAPI();
+      console.log('[Index] Loaded unplanned trips from API:', unplannedTrips.length);
+      
+      // Merge and set
+      const allTrips = [...plannedTrips, ...unplannedTrips];
+      console.log('[Index] Total trips:', allTrips.length);
+      setTrips(allTrips);
+      
+    } catch (error) {
+      console.error('[Index] Error loading data:', error);
+      toast.error('Fehler beim Laden der Daten');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadPlannedTripsFromSupabase = async (): Promise<Trip[]> => {
+    if (!user) return [];
+    
     try {
       const data = await fetchTrips(user.id);
-      console.log('[Index] Loaded trips:', data.length);
-      const mappedTrips: Trip[] = data.map((dbTrip: any) => ({
+      return data.map((dbTrip: any) => ({
         id: dbTrip.id,
         direction: dbTrip.direction as 'hin' | 'rueck',
         reisecode: dbTrip.reisecode,
@@ -96,12 +120,92 @@ const Index = () => {
         planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
         groupId: dbTrip.group_id,
         tripNumber: dbTrip.trip_number,
-        busDetails: null,
+        busDetails: null, // TODO: Load from bus_groups table
       }));
-      setTrips(mappedTrips);
     } catch (error) {
-      console.error('Error loading trips:', error);
-      toast.error('Fehler beim Laden der Reisen');
+      console.error('[Index] Error loading planned trips:', error);
+      return [];
+    }
+  };
+
+  const loadUnplannedTripsFromAPI = async (): Promise<Trip[]> => {
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getCompleteData',
+          dateFrom: convertDateToAPI(dateFrom),
+          dateTo: convertDateToAPI(dateTo),
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const result: APIResponse = await response.json();
+
+      if (result.success && result.data) {
+        setStops(result.data.stops);
+        
+        const unplannedTrips: Trip[] = [];
+        
+        result.data.trips.forEach(booking => {
+          // Hinfahrt
+          if (booking['Hinfahrt von']) {
+            const hinStops = result.data.stops.filter(s => 
+              s.Reisecode === booking.Reisecode && 
+              s.Beförderung && s.Beförderung.toLowerCase().includes('hinfahrt')
+            );
+
+            unplannedTrips.push({
+              id: `${booking.Reisecode}-HIN`,
+              direction: 'hin',
+              reisecode: booking.Reisecode,
+              produktcode: booking.Produktcode || '',
+              reise: booking.Reise || '',
+              datum: booking['Hinfahrt von'] || '',
+              uhrzeit: hinStops[0]?.Zeit || '',
+              kontingent: booking['Hinfahrt Kontingent'] || 0,
+              buchungen: booking['Hinfahrt Buchungen'] || 0,
+              planningStatus: 'unplanned',
+              groupId: null,
+              tripNumber: null,
+              busDetails: null,
+            });
+          }
+
+          // Rückfahrt
+          if (booking['Rückfahrt von'] || booking['Rückfahrt bis']) {
+            const rueckStops = result.data.stops.filter(s => 
+              s.Reisecode === booking.Reisecode && 
+              s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
+            );
+
+            unplannedTrips.push({
+              id: `${booking.Reisecode}-RUECK`,
+              direction: 'rueck',
+              reisecode: booking.Reisecode,
+              produktcode: booking.Produktcode || '',
+              reise: booking.Reise || '',
+              datum: booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '',
+              uhrzeit: rueckStops[0]?.Zeit || '',
+              kontingent: booking['Rückfahrt Kontingent'] || 0,
+              buchungen: booking['Rückfahrt Buchungen'] || 0,
+              planningStatus: 'unplanned',
+              groupId: null,
+              tripNumber: null,
+              busDetails: null,
+            });
+          }
+        });
+        
+        return unplannedTrips;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('[Index] Error loading unplanned trips from API:', error);
+      return [];
     }
   };
 
@@ -120,108 +224,9 @@ const Index = () => {
   };
 
   const loadFromAPI = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'getCompleteData',
-          dateFrom: convertDateToAPI(dateFrom),
-          dateTo: convertDateToAPI(dateTo),
-        }),
-      });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const result: APIResponse = await response.json();
-
-      if (result.success && result.data) {
-        await mergeWithExistingData(result.data.trips, result.data.stops);
-        toast.success('Daten erfolgreich geladen');
-      }
-    } catch (error) {
-      console.error('API Error:', error);
-      toast.error('Fehler beim Laden der Daten');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const mergeWithExistingData = async (apiTrips: APIBooking[], apiStops: Stop[]) => {
-    if (!user) return;
-
-    const plannedTrips = trips.filter(trip => trip.planningStatus !== 'unplanned');
-    const newTripsToCreate: Partial<Trip>[] = [];
-
-    apiTrips.forEach(booking => {
-      // Hinfahrt
-      if (booking['Hinfahrt von']) {
-        const hinId = `${booking.Reisecode}-HIN`;
-        const existingPlanned = plannedTrips.find(t => t.reisecode === booking.Reisecode && t.direction === 'hin');
-
-        if (!existingPlanned) {
-          const hinStops = apiStops.filter(s => 
-            s.Reisecode === booking.Reisecode && 
-            s.Beförderung && s.Beförderung.toLowerCase().includes('hinfahrt')
-          );
-
-          newTripsToCreate.push({
-            id: hinId,
-            direction: 'hin',
-            reisecode: booking.Reisecode,
-            produktcode: booking.Produktcode || '',
-            reise: booking.Reise || '',
-            datum: booking['Hinfahrt von'] || '',
-            uhrzeit: hinStops[0]?.Zeit || '',
-            kontingent: booking['Hinfahrt Kontingent'] || 0,
-            buchungen: booking['Hinfahrt Buchungen'] || 0,
-            planningStatus: 'unplanned',
-            groupId: null,
-            tripNumber: null,
-            busDetails: null,
-          });
-        }
-      }
-
-      // Rückfahrt
-      if (booking['Rückfahrt von'] || booking['Rückfahrt bis']) {
-        const rueckId = `${booking.Reisecode}-RUECK`;
-        const existingPlanned = plannedTrips.find(t => t.reisecode === booking.Reisecode && t.direction === 'rueck');
-
-        if (!existingPlanned) {
-          const rueckStops = apiStops.filter(s => 
-            s.Reisecode === booking.Reisecode && 
-            s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
-          );
-
-          newTripsToCreate.push({
-            id: rueckId,
-            direction: 'rueck',
-            reisecode: booking.Reisecode,
-            produktcode: booking.Produktcode || '',
-            reise: booking.Reise || '',
-            datum: booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '',
-            uhrzeit: rueckStops[0]?.Zeit || '',
-            kontingent: booking['Rückfahrt Kontingent'] || 0,
-            buchungen: booking['Rückfahrt Buchungen'] || 0,
-            planningStatus: 'unplanned',
-            groupId: null,
-            tripNumber: null,
-            busDetails: null,
-          });
-        }
-      }
-    });
-
-    if (newTripsToCreate.length > 0) {
-      await createTrips(newTripsToCreate, user.id);
-    }
-
-    setStops(apiStops);
-    await loadTripsFromSupabase();
+    console.log('[Index] Manual reload triggered');
+    await loadAllData();
+    toast.success('Daten erfolgreich geladen');
   };
 
   const setDateRange = (range: 'season' | 'month') => {
@@ -253,35 +258,55 @@ const Index = () => {
   };
 
   const createGroupFromSelection = async () => {
-    if (selectedTrips.size === 0) {
+    if (!user || selectedTrips.size === 0) {
       toast.error('Bitte wählen Sie mindestens eine Reise aus');
       return;
     }
 
+    console.log('[Index] Creating group from selection:', selectedTrips.size, 'trips');
     const groupId = `group-${Date.now()}-${nextGroupId}`;
+    const tripNumber = String(nextGroupId).padStart(3, '0');
     
-    for (const tripId of Array.from(selectedTrips)) {
-      await updateTrip(tripId, {
+    try {
+      // Get the selected trips
+      const selectedTripsList = trips.filter(t => selectedTrips.has(t.id));
+      
+      // Create entries in Supabase for each selected trip
+      const tripsToCreate = selectedTripsList.map(trip => ({
+        ...trip,
         groupId,
-        planningStatus: 'draft',
-        tripNumber: String(nextGroupId).padStart(3, '0'),
-      });
+        planningStatus: 'draft' as const,
+        tripNumber,
+      }));
+      
+      await createTrips(tripsToCreate, user.id);
+      
+      setSelectedTrips(new Set());
+      setNextGroupId(nextGroupId + 1);
+      toast.success('Busplanung erstellt');
+      
+      // Reload data to show the new planned trips
+      await loadAllData();
+      
+    } catch (error) {
+      console.error('[Index] Error creating group:', error);
+      toast.error('Fehler beim Erstellen der Busplanung');
     }
-
-    setSelectedTrips(new Set());
-    setNextGroupId(nextGroupId + 1);
-    toast.success('Busplanung erstellt');
-    await loadTripsFromSupabase();
   };
 
   const updateGroup = async (groupId: string, updates: Partial<Trip>) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     
-    for (const trip of groupTrips) {
-      await updateTrip(trip.id, updates);
+    try {
+      for (const trip of groupTrips) {
+        await updateTrip(trip.id, updates);
+      }
+      
+      await loadAllData();
+    } catch (error) {
+      console.error('[Index] Error updating group:', error);
+      toast.error('Fehler beim Aktualisieren');
     }
-    
-    await loadTripsFromSupabase();
   };
 
   const completeGroup = async (groupId: string) => {
@@ -291,63 +316,89 @@ const Index = () => {
       return;
     }
 
-    for (const trip of groupTrips) {
-      await updateTrip(trip.id, { planningStatus: 'completed' });
+    try {
+      for (const trip of groupTrips) {
+        await updateTrip(trip.id, { planningStatus: 'completed' });
+      }
+      
+      toast.success('Busplanung fertiggestellt');
+      await loadAllData();
+    } catch (error) {
+      console.error('[Index] Error completing group:', error);
+      toast.error('Fehler beim Fertigstellen');
     }
-    
-    toast.success('Busplanung fertiggestellt');
-    await loadTripsFromSupabase();
   };
 
   const setGroupToDraft = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     
-    for (const trip of groupTrips) {
-      await updateTrip(trip.id, { planningStatus: 'draft' });
+    try {
+      for (const trip of groupTrips) {
+        await updateTrip(trip.id, { planningStatus: 'draft' });
+      }
+      
+      toast.info('Busplanung auf Entwurf zurückgesetzt');
+      await loadAllData();
+    } catch (error) {
+      console.error('[Index] Error setting group to draft:', error);
+      toast.error('Fehler beim Zurücksetzen');
     }
-    
-    toast.info('Busplanung auf Entwurf zurückgesetzt');
-    await loadTripsFromSupabase();
   };
 
   const lockGroup = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     
-    for (const trip of groupTrips) {
-      await updateTrip(trip.id, { planningStatus: 'locked' });
+    try {
+      for (const trip of groupTrips) {
+        await updateTrip(trip.id, { planningStatus: 'locked' });
+      }
+      
+      toast.info('Busplanung gesperrt');
+      await loadAllData();
+    } catch (error) {
+      console.error('[Index] Error locking group:', error);
+      toast.error('Fehler beim Sperren');
     }
-    
-    toast.info('Busplanung gesperrt');
-    await loadTripsFromSupabase();
   };
 
   const unlockGroup = async (groupId: string) => {
     if (confirm('Möchten Sie diese Busplanung entsperren?')) {
       const groupTrips = trips.filter(t => t.groupId === groupId);
       
-      for (const trip of groupTrips) {
-        await updateTrip(trip.id, { planningStatus: 'completed' });
+      try {
+        for (const trip of groupTrips) {
+          await updateTrip(trip.id, { planningStatus: 'completed' });
+        }
+        
+        toast.info('Busplanung entsperrt');
+        await loadAllData();
+      } catch (error) {
+        console.error('[Index] Error unlocking group:', error);
+        toast.error('Fehler beim Entsperren');
       }
-      
-      toast.info('Busplanung entsperrt');
-      await loadTripsFromSupabase();
     }
   };
 
   const dissolveGroup = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     
-    for (const trip of groupTrips) {
-      await updateTrip(trip.id, {
-        groupId: null,
-        tripNumber: null,
-        planningStatus: 'unplanned',
-        busDetails: null,
-      });
+    try {
+      // Delete the planned trips from Supabase
+      for (const trip of groupTrips) {
+        const { error } = await supabase
+          .from('trips')
+          .delete()
+          .eq('id', trip.id);
+        
+        if (error) throw error;
+      }
+      
+      toast.info('Busplanung aufgelöst');
+      await loadAllData();
+    } catch (error) {
+      console.error('[Index] Error dissolving group:', error);
+      toast.error('Fehler beim Auflösen');
     }
-    
-    toast.info('Busplanung aufgelöst');
-    await loadTripsFromSupabase();
   };
 
   const handleExportCSV = () => {
