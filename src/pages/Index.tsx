@@ -428,27 +428,33 @@ const Index = () => {
     if (!confirm('Busplanung wirklich auflösen?')) return;
     
     try {
-      // Delete all trips belonging to this group
+      // First delete trips
       const { error: tripsError } = await supabase
         .from('trips')
         .delete()
         .eq('group_id', groupId);
       
-      if (tripsError) throw tripsError;
+      if (tripsError) {
+        console.error('[dissolveGroup] Error deleting trips:', tripsError);
+        throw tripsError;
+      }
       
-      // Delete the bus group
+      // Then delete bus_group
       const { error: groupError } = await supabase
         .from('bus_groups')
         .delete()
         .eq('id', groupId);
       
-      if (groupError) throw groupError;
+      if (groupError) {
+        console.error('[dissolveGroup] Error deleting bus_group:', groupError);
+        throw groupError;
+      }
       
-      toast.info('Busplanung aufgelöst');
+      toast.success('Busplanung aufgelöst');
       await loadAllData();
     } catch (error) {
-      console.error('[Index] Error dissolving group:', error);
-      toast.error('Fehler beim Auflösen');
+      console.error('[dissolveGroup] Error:', error);
+      toast.error('Fehler beim Auflösen der Busplanung');
     }
   };
 
