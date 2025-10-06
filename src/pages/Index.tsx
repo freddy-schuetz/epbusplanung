@@ -88,8 +88,8 @@ const Index = () => {
       const plannedTrips = await loadPlannedTripsFromSupabase();
       console.log('[Index] Loaded planned trips from Supabase:', plannedTrips.length);
       
-      // Load UNPLANNED trips from API
-      const unplannedTrips = await loadUnplannedTripsFromAPI();
+      // Load UNPLANNED trips from API (excluding already planned ones)
+      const unplannedTrips = await loadUnplannedTripsFromAPI(plannedTrips);
       console.log('[Index] Loaded unplanned trips from API:', unplannedTrips.length);
       
       // Merge and set
@@ -147,7 +147,7 @@ const Index = () => {
     }
   };
 
-  const loadUnplannedTripsFromAPI = async (): Promise<Trip[]> => {
+  const loadUnplannedTripsFromAPI = async (plannedTrips: Trip[] = []): Promise<Trip[]> => {
     try {
       const response = await fetch(API_URL, {
         method: 'POST',
@@ -166,53 +166,68 @@ const Index = () => {
       if (result.success && result.data) {
         setStops(result.data.stops);
         
+        // Create a Set of planned trip keys for efficient lookup
+        const plannedReisecodes = new Set(
+          plannedTrips.map(t => `${t.reisecode}-${t.direction.toUpperCase()}`)
+        );
+        
         const unplannedTrips: Trip[] = [];
         
         result.data.trips.forEach(booking => {
           // Hinfahrt
           if (booking['Hinfahrt von']) {
-            const hinStops = result.data.stops.filter(s => 
-              s.Reisecode === booking.Reisecode && 
-              s.Beförderung && s.Beförderung.toLowerCase().includes('hinfahrt')
-            );
+            const tripKey = `${booking.Reisecode}-HIN`;
+            
+            // Skip if already planned
+            if (!plannedReisecodes.has(tripKey)) {
+              const hinStops = result.data.stops.filter(s => 
+                s.Reisecode === booking.Reisecode && 
+                s.Beförderung && s.Beförderung.toLowerCase().includes('hinfahrt')
+              );
 
-            unplannedTrips.push({
-              id: `${booking.Reisecode}-HIN`,
-              direction: 'hin',
-              reisecode: booking.Reisecode,
-              produktcode: booking.Produktcode || '',
-              reise: booking.Reise || '',
-              datum: booking['Hinfahrt von'] || '',
-              uhrzeit: hinStops[0]?.Zeit || '',
-              kontingent: booking['Hinfahrt Kontingent'] || 0,
-              buchungen: booking['Hinfahrt Buchungen'] || 0,
-              planningStatus: 'unplanned',
-              groupId: null,
-              busDetails: null,
-            });
+              unplannedTrips.push({
+                id: tripKey,
+                direction: 'hin',
+                reisecode: booking.Reisecode,
+                produktcode: booking.Produktcode || '',
+                reise: booking.Reise || '',
+                datum: booking['Hinfahrt von'] || '',
+                uhrzeit: hinStops[0]?.Zeit || '',
+                kontingent: booking['Hinfahrt Kontingent'] || 0,
+                buchungen: booking['Hinfahrt Buchungen'] || 0,
+                planningStatus: 'unplanned',
+                groupId: null,
+                busDetails: null,
+              });
+            }
           }
 
           // Rückfahrt
           if (booking['Rückfahrt von'] || booking['Rückfahrt bis']) {
-            const rueckStops = result.data.stops.filter(s => 
-              s.Reisecode === booking.Reisecode && 
-              s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
-            );
+            const tripKey = `${booking.Reisecode}-RUECK`;
+            
+            // Skip if already planned
+            if (!plannedReisecodes.has(tripKey)) {
+              const rueckStops = result.data.stops.filter(s => 
+                s.Reisecode === booking.Reisecode && 
+                s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
+              );
 
-            unplannedTrips.push({
-              id: `${booking.Reisecode}-RUECK`,
-              direction: 'rueck',
-              reisecode: booking.Reisecode,
-              produktcode: booking.Produktcode || '',
-              reise: booking.Reise || '',
-              datum: booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '',
-              uhrzeit: rueckStops[0]?.Zeit || '',
-              kontingent: booking['Rückfahrt Kontingent'] || 0,
-              buchungen: booking['Rückfahrt Buchungen'] || 0,
-              planningStatus: 'unplanned',
-              groupId: null,
-              busDetails: null,
-            });
+              unplannedTrips.push({
+                id: tripKey,
+                direction: 'rueck',
+                reisecode: booking.Reisecode,
+                produktcode: booking.Produktcode || '',
+                reise: booking.Reise || '',
+                datum: booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '',
+                uhrzeit: rueckStops[0]?.Zeit || '',
+                kontingent: booking['Rückfahrt Kontingent'] || 0,
+                buchungen: booking['Rückfahrt Buchungen'] || 0,
+                planningStatus: 'unplanned',
+                groupId: null,
+                busDetails: null,
+              });
+            }
           }
         });
         
