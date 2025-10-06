@@ -85,10 +85,10 @@ export const GroupForm = ({
 
   // Group stops by Ort (location) and Zeit (time), sum passengers
   const aggregatedStops = groupStops.reduce((acc, stop) => {
-    const key = `${stop.Zeit}-${stop.Ort || 'Unbekannt'}`;
+    const key = `${stop.Zeit || ''}-${stop.Ort || 'Unbekannt'}`;
     if (!acc[key]) {
       acc[key] = {
-        time: stop.Zeit,
+        time: stop.Zeit || '',
         location: stop.Ort || 'Unbekannt',
         passengers: stop.Anzahl || 0,
       };
@@ -100,7 +100,7 @@ export const GroupForm = ({
 
   // Sort by time
   const sortedStops = Object.values(aggregatedStops).sort((a, b) => 
-    a.time.localeCompare(b.time)
+    (a.time || '').localeCompare(b.time || '')
   );
 
   return (
