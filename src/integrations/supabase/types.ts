@@ -14,6 +14,89 @@ export type Database = {
   }
   public: {
     Tables: {
+      bus_groups: {
+        Row: {
+          accommodation: string | null
+          bus_id: string | null
+          created_at: string | null
+          id: string
+          km_hinweg: string | null
+          km_rueckweg: string | null
+          luggage: string | null
+          notes: string | null
+          status: string
+          trip_number: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          accommodation?: string | null
+          bus_id?: string | null
+          created_at?: string | null
+          id?: string
+          km_hinweg?: string | null
+          km_rueckweg?: string | null
+          luggage?: string | null
+          notes?: string | null
+          status?: string
+          trip_number?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          accommodation?: string | null
+          bus_id?: string | null
+          created_at?: string | null
+          id?: string
+          km_hinweg?: string | null
+          km_rueckweg?: string | null
+          luggage?: string | null
+          notes?: string | null
+          status?: string
+          trip_number?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bus_groups_bus_id_fkey"
+            columns: ["bus_id"]
+            isOneToOne: false
+            referencedRelation: "buses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buses: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_contractual: boolean | null
+          license_plate: string | null
+          name: string
+          seats: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_contractual?: boolean | null
+          license_plate?: string | null
+          name: string
+          seats: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_contractual?: boolean | null
+          license_plate?: string | null
+          name?: string
+          seats?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       busunternehmen: {
         Row: {
           aktiv: boolean | null
@@ -381,6 +464,65 @@ export type Database = {
           text?: string
         }
         Relationships: []
+      }
+      trips: {
+        Row: {
+          buchungen: number | null
+          created_at: string | null
+          datum: string
+          direction: string
+          group_id: string | null
+          id: string
+          kontingent: number | null
+          produktcode: string | null
+          reise: string
+          reisecode: string
+          status: string
+          uhrzeit: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          buchungen?: number | null
+          created_at?: string | null
+          datum: string
+          direction: string
+          group_id?: string | null
+          id?: string
+          kontingent?: number | null
+          produktcode?: string | null
+          reise: string
+          reisecode: string
+          status?: string
+          uhrzeit?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          buchungen?: number | null
+          created_at?: string | null
+          datum?: string
+          direction?: string
+          group_id?: string | null
+          id?: string
+          kontingent?: number | null
+          produktcode?: string | null
+          reise?: string
+          reisecode?: string
+          status?: string
+          uhrzeit?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "bus_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
