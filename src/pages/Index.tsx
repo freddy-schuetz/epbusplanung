@@ -425,18 +425,24 @@ const Index = () => {
   };
 
   const dissolveGroup = async (groupId: string) => {
-    const groupTrips = trips.filter(t => t.groupId === groupId);
+    if (!confirm('Busplanung wirklich auflösen?')) return;
     
     try {
-      // Delete the planned trips from Supabase
-      for (const trip of groupTrips) {
-        const { error } = await supabase
-          .from('trips')
-          .delete()
-          .eq('id', trip.id);
-        
-        if (error) throw error;
-      }
+      // Delete all trips belonging to this group
+      const { error: tripsError } = await supabase
+        .from('trips')
+        .delete()
+        .eq('group_id', groupId);
+      
+      if (tripsError) throw tripsError;
+      
+      // Delete the bus group
+      const { error: groupError } = await supabase
+        .from('bus_groups')
+        .delete()
+        .eq('id', groupId);
+      
+      if (groupError) throw groupError;
       
       toast.info('Busplanung aufgelöst');
       await loadAllData();
