@@ -495,13 +495,21 @@ const Index = () => {
         status: 'draft' 
       }, user.id);
 
-      // Update all trips with the group_id
-      for (const trip of ungroupedTrips) {
-        await updateTrip(trip.id, { 
-          groupId,
-          planningStatus: 'draft'
-        });
-      }
+      // INSERT new trips into Supabase (API trips are not in DB yet)
+      const tripsToInsert = ungroupedTrips.map(trip => ({
+        datum: trip.datum,
+        direction: trip.direction,
+        reise: trip.reise,
+        reisecode: trip.reisecode,
+        uhrzeit: trip.uhrzeit,
+        produktcode: trip.produktcode,
+        buchungen: trip.buchungen,
+        kontingent: trip.kontingent,
+        planningStatus: 'draft' as const,
+        groupId: groupId,
+      }));
+
+      await createTrips(tripsToInsert, user.id);
 
       clearSelection();
       await loadAllData();
