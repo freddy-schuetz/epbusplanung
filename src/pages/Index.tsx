@@ -119,7 +119,7 @@ const Index = () => {
         buchungen: dbTrip.buchungen || 0,
         planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
         groupId: dbTrip.group_id,
-        tripNumber: dbTrip.trip_number,
+        tripNumber: null, // trip_number is only in bus_groups
         busDetails: null, // TODO: Load from bus_groups table
       }));
     } catch (error) {
@@ -169,7 +169,6 @@ const Index = () => {
               buchungen: booking['Hinfahrt Buchungen'] || 0,
               planningStatus: 'unplanned',
               groupId: null,
-              tripNumber: null,
               busDetails: null,
             });
           }
@@ -193,7 +192,6 @@ const Index = () => {
               buchungen: booking['Rückfahrt Buchungen'] || 0,
               planningStatus: 'unplanned',
               groupId: null,
-              tripNumber: null,
               busDetails: null,
             });
           }
@@ -264,8 +262,9 @@ const Index = () => {
     }
 
     console.log('[Index] Creating group from selection:', selectedTrips.size, 'trips');
-    const groupId = `group-${Date.now()}-${nextGroupId}`;
-    const tripNumber = String(nextGroupId).padStart(3, '0');
+    
+    // Generate proper UUID for group_id
+    const groupId = crypto.randomUUID();
     
     try {
       // Get the selected trips
@@ -276,7 +275,7 @@ const Index = () => {
         ...trip,
         groupId,
         planningStatus: 'draft' as const,
-        tripNumber,
+        tripNumber: null, // trip_number is only in bus_groups
       }));
       
       await createTrips(tripsToCreate, user.id);

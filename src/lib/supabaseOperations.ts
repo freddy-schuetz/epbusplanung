@@ -43,7 +43,6 @@ export const createTrips = async (trips: Partial<Trip>[], userId: string) => {
     buchungen: trip.buchungen || 0,
     status: trip.planningStatus || 'unplanned',
     group_id: trip.groupId,
-    trip_number: trip.tripNumber,
     produktcode: trip.produktcode || '',
     reise: trip.reise || '',
     kontingent: trip.kontingent || 0,
@@ -64,7 +63,6 @@ export const updateTrip = async (id: string, updates: Partial<Trip>) => {
     .update({
       status: updates.planningStatus,
       group_id: updates.groupId,
-      trip_number: updates.tripNumber,
     })
     .eq('id', id)
     .select();

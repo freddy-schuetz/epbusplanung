@@ -478,7 +478,6 @@ export type Database = {
           reise: string
           reisecode: string
           status: string
-          trip_number: string | null
           uhrzeit: string | null
           updated_at: string | null
           user_id: string
@@ -495,7 +494,6 @@ export type Database = {
           reise: string
           reisecode: string
           status?: string
-          trip_number?: string | null
           uhrzeit?: string | null
           updated_at?: string | null
           user_id: string
@@ -512,7 +510,6 @@ export type Database = {
           reise?: string
           reisecode?: string
           status?: string
-          trip_number?: string | null
           uhrzeit?: string | null
           updated_at?: string | null
           user_id?: string

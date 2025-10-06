@@ -26,8 +26,20 @@ export interface Trip {
   buchungen: number;
   planningStatus: 'unplanned' | 'draft' | 'completed' | 'locked';
   groupId: string | null;
-  tripNumber: string | null;
   busDetails: BusDetails | null;
+}
+
+export interface BusGroup {
+  id: string;
+  trip_number: string;
+  bus_id: string | null;
+  km_hinweg: string | null;
+  km_rueckweg: string | null;
+  luggage: string | null;
+  accommodation: string | null;
+  notes: string | null;
+  status: string;
+  user_id: string;
 }
 
 export interface Stop {

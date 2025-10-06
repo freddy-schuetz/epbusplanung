@@ -82,7 +82,7 @@ export const GroupCard = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="font-bold text-lg">🚌 {firstTrip.tripNumber || '---'}</span>
+          <span className="font-bold text-lg">🚌 Busplanung</span>
           <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
           <span className="opacity-90">
             <StatusBadge status={firstTrip.planningStatus} />

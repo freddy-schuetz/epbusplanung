@@ -32,7 +32,7 @@ export function exportToCSV(trips: Trip[]): void {
     const hasRueck = groupTrips.some(t => t.direction === 'rueck');
     const directionText = hasHin && hasRueck ? 'Hin+Rückfahrt' : firstTrip.direction === 'hin' ? 'Hinfahrt' : 'Rückfahrt';
     
-    csv += `${firstTrip.tripNumber};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''}\n`;
+    csv += `${firstTrip.groupId};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''}\n`;
   });
   
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
