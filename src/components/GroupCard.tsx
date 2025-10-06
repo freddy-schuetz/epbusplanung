@@ -3,8 +3,9 @@ import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
-import { Trip, Bus } from '@/types/bus';
+import { Trip, Bus, BusGroup } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GroupCardProps {
   groupId: string;
@@ -29,6 +30,7 @@ export const GroupCard = ({
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
+  const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const firstTrip = trips[0];
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
   const hasHin = trips.some(t => t.direction === 'hin');
@@ -37,7 +39,20 @@ export const GroupCard = ({
 
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
-  }, []);
+    
+    // Fetch bus group data to get trip_number
+    const fetchBusGroup = async () => {
+      const { data } = await supabase
+        .from('bus_groups')
+        .select('*')
+        .eq('id', groupId)
+        .single();
+      
+      if (data) setBusGroup(data);
+    };
+    
+    fetchBusGroup();
+  }, [groupId]);
   
   let busInfo = '';
   if (firstTrip.busDetails?.busId) {
@@ -83,6 +98,11 @@ export const GroupCard = ({
       >
         <div className="flex items-center gap-3">
           <span className="font-bold text-lg">🚌 Busplanung</span>
+          {busGroup?.trip_number && (
+            <span className="bg-white/30 px-3 py-1 rounded font-bold">
+              Fahrt-Nr: {busGroup.trip_number}
+            </span>
+          )}
           <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
           <span className="opacity-90">
             <StatusBadge status={firstTrip.planningStatus} />

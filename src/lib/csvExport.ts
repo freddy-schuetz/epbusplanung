@@ -1,7 +1,8 @@
 import { Trip } from '@/types/bus';
 import { BUSES } from './buses';
+import { supabase } from '@/integrations/supabase/client';
 
-export function exportToCSV(trips: Trip[]): void {
+export async function exportToCSV(trips: Trip[]): Promise<void> {
   const groups: Record<string, Trip[]> = {};
   
   trips.forEach(trip => {
@@ -14,6 +15,15 @@ export function exportToCSV(trips: Trip[]): void {
   if (Object.keys(groups).length === 0) {
     throw new Error('Keine fertiggestellten Busfahrten zum Export');
   }
+  
+  // Fetch bus_groups to get trip_numbers
+  const groupIds = Object.keys(groups);
+  const { data: busGroups } = await supabase
+    .from('bus_groups')
+    .select('id, trip_number')
+    .in('id', groupIds);
+  
+  const busGroupsMap = new Map(busGroups?.map(bg => [bg.id, bg.trip_number]) || []);
   
   let csv = 'Fahrt-Nr;Bus;Richtung;Reisecodes;Datum;Passagiere;KM-Hinweg;KM-Rückweg;Gepäck;Fahrerzimmer;Anmerkungen\n';
   
@@ -32,7 +42,9 @@ export function exportToCSV(trips: Trip[]): void {
     const hasRueck = groupTrips.some(t => t.direction === 'rueck');
     const directionText = hasHin && hasRueck ? 'Hin+Rückfahrt' : firstTrip.direction === 'hin' ? 'Hinfahrt' : 'Rückfahrt';
     
-    csv += `${firstTrip.groupId};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''}\n`;
+    const tripNumber = busGroupsMap.get(firstTrip.groupId || '') || firstTrip.groupId;
+    
+    csv += `${tripNumber};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''}\n`;
   });
   
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

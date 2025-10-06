@@ -301,9 +301,25 @@ const Index = () => {
     const groupId = crypto.randomUUID();
     
     try {
+      // Get next trip number
+      const { data: lastGroup } = await supabase
+        .from('bus_groups')
+        .select('trip_number')
+        .order('trip_number', { ascending: false })
+        .limit(1);
+      
+      let nextNumber = 1;
+      if (lastGroup && lastGroup[0]?.trip_number) {
+        nextNumber = parseInt(lastGroup[0].trip_number) + 1;
+      }
+      
+      const tripNumber = nextNumber.toString().padStart(3, '0');
+      console.log('[Index] Assigning trip number:', tripNumber);
+      
       // FIRST: Create the bus_group record
       await createBusGroup({
         id: groupId,
+        trip_number: tripNumber,
         status: 'draft',
       }, user.id);
       
@@ -466,9 +482,9 @@ const Index = () => {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     try {
-      exportToCSV(trips);
+      await exportToCSV(trips);
       toast.success('CSV exportiert');
     } catch (error) {
       toast.error((error as Error).message);
@@ -532,9 +548,25 @@ const Index = () => {
       // Create ONE group ID for all trips
       const groupId = crypto.randomUUID();
 
+      // Get next trip number
+      const { data: lastGroup } = await supabase
+        .from('bus_groups')
+        .select('trip_number')
+        .order('trip_number', { ascending: false })
+        .limit(1);
+      
+      let nextNumber = 1;
+      if (lastGroup && lastGroup[0]?.trip_number) {
+        nextNumber = parseInt(lastGroup[0].trip_number) + 1;
+      }
+      
+      const tripNumber = nextNumber.toString().padStart(3, '0');
+      console.log('[Index] Assigning trip number:', tripNumber);
+
       // Create the bus_group first
       await createBusGroup({ 
         id: groupId,
+        trip_number: tripNumber,
         status: 'draft' 
       }, user.id);
 
