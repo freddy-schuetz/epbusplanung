@@ -1,8 +1,8 @@
-import { Trip } from '@/types/bus';
+import { Trip, Stop } from '@/types/bus';
 import { BUSES } from './buses';
 import { supabase } from '@/integrations/supabase/client';
 
-export async function exportToCSV(trips: Trip[]): Promise<void> {
+export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
   const groups: Record<string, Trip[]> = {};
   
   trips.forEach(trip => {
@@ -25,7 +25,7 @@ export async function exportToCSV(trips: Trip[]): Promise<void> {
   
   const busGroupsMap = new Map(busGroups?.map(bg => [bg.id, bg.trip_number]) || []);
   
-  let csv = 'Fahrt-Nr;Bus;Richtung;Reisecodes;Datum;Passagiere;KM-Hinweg;KM-Rückweg;Gepäck;Fahrerzimmer;Anmerkungen\n';
+  let csv = 'Fahrt-Nr;Bus;Richtung;Reisecodes;Datum;Passagiere;KM-Hinweg;KM-Rückweg;Gepäck;Fahrerzimmer;Anmerkungen;Haltestellen\n';
   
   Object.values(groups).forEach(groupTrips => {
     const firstTrip = groupTrips[0];
@@ -44,7 +44,33 @@ export async function exportToCSV(trips: Trip[]): Promise<void> {
     
     const tripNumber = busGroupsMap.get(firstTrip.groupId || '') || firstTrip.groupId;
     
-    csv += `${tripNumber};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''}\n`;
+    // Get stops for this group
+    const groupStops = stops.filter(stop => 
+      groupTrips.some(trip => trip.reisecode === stop.Reisecode)
+    );
+    
+    // Aggregate stops by location and time
+    const aggregatedStops = groupStops.reduce((acc, stop) => {
+      const key = `${stop.Zeit}-${stop.Ort || 'Unbekannt'}`;
+      if (!acc[key]) {
+        acc[key] = {
+          time: stop.Zeit,
+          location: stop.Ort || 'Unbekannt',
+          passengers: stop.Anzahl || 0,
+        };
+      } else {
+        acc[key].passengers += stop.Anzahl || 0;
+      }
+      return acc;
+    }, {} as Record<string, { time: string; location: string; passengers: number }>);
+    
+    // Sort by time and format
+    const sortedStops = Object.values(aggregatedStops)
+      .sort((a, b) => a.time.localeCompare(b.time))
+      .map(stop => `${stop.time} ${stop.location} (${stop.passengers} PAX)`)
+      .join(' | ');
+    
+    csv += `${tripNumber};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''};${sortedStops}\n`;
   });
   
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

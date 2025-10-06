@@ -3,13 +3,14 @@ import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
-import { Trip, Bus, BusGroup } from '@/types/bus';
+import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
 
 interface GroupCardProps {
   groupId: string;
   trips: Trip[];
+  stops: Stop[];
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -21,6 +22,7 @@ interface GroupCardProps {
 export const GroupCard = ({
   groupId,
   trips,
+  stops,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
@@ -124,6 +126,7 @@ export const GroupCard = ({
           <GroupForm
             groupId={groupId}
             trips={trips}
+            stops={stops}
             onUpdateGroup={onUpdateGroup}
             onCompleteGroup={onCompleteGroup}
             onSetGroupToDraft={onSetGroupToDraft}

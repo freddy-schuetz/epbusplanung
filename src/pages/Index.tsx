@@ -526,7 +526,7 @@ const Index = () => {
 
   const handleExportCSV = async () => {
     try {
-      await exportToCSV(trips);
+      await exportToCSV(trips, stops);
       toast.success('CSV exportiert');
     } catch (error) {
       toast.error((error as Error).message);
@@ -788,6 +788,7 @@ const Index = () => {
                   hinfahrten={hinfahrten}
                   rueckfahrten={rueckfahrten}
                   nextDayKey={nextDayKey}
+                  stops={stops}
                   selectedTrips={selectedTrips}
                   onToggleSelection={toggleSelection}
                   onUpdateGroup={updateGroup}

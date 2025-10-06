@@ -46,6 +46,8 @@ export interface Stop {
   Reisecode: string;
   Beförderung: string;
   Zeit: string;
+  Ort?: string;
+  Anzahl?: number;
 }
 
 export interface APIBooking {

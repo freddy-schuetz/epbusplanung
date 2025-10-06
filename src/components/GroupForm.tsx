@@ -11,13 +11,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trip, BusDetails, Bus } from '@/types/bus';
+import { Trip, BusDetails, Bus, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { toast } from 'sonner';
 
 interface GroupFormProps {
   groupId: string;
   trips: Trip[];
+  stops: Stop[];
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -27,6 +28,7 @@ interface GroupFormProps {
 export const GroupForm = ({
   groupId,
   trips,
+  stops,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
@@ -76,6 +78,31 @@ export const GroupForm = ({
     }
   };
 
+  // Aggregate stops for this group
+  const groupStops = stops.filter(stop => 
+    trips.some(trip => trip.reisecode === stop.Reisecode)
+  );
+
+  // Group stops by Ort (location) and Zeit (time), sum passengers
+  const aggregatedStops = groupStops.reduce((acc, stop) => {
+    const key = `${stop.Zeit}-${stop.Ort || 'Unbekannt'}`;
+    if (!acc[key]) {
+      acc[key] = {
+        time: stop.Zeit,
+        location: stop.Ort || 'Unbekannt',
+        passengers: stop.Anzahl || 0,
+      };
+    } else {
+      acc[key].passengers += stop.Anzahl || 0;
+    }
+    return acc;
+  }, {} as Record<string, { time: string; location: string; passengers: number }>);
+
+  // Sort by time
+  const sortedStops = Object.values(aggregatedStops).sort((a, b) => 
+    a.time.localeCompare(b.time)
+  );
+
   return (
     <div className="space-y-5">
       <div className="bg-card rounded-lg p-4 border">
@@ -90,6 +117,21 @@ export const GroupForm = ({
           </div>
         ))}
       </div>
+
+      {sortedStops.length > 0 && (
+        <div className="bg-card rounded-lg p-4 border">
+          <h4 className="font-semibold mb-3">📍 Haltestellen:</h4>
+          <div className="space-y-2">
+            {sortedStops.map((stop, index) => (
+              <div key={index} className="flex items-center gap-3 text-sm">
+                <span className="font-mono text-muted-foreground">{stop.time}</span>
+                <span className="flex-1">{stop.location}</span>
+                <span className="font-semibold">{stop.passengers} PAX</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">

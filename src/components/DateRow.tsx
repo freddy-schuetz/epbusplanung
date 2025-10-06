@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { GroupCard } from './GroupCard';
 import { TripCard } from './TripCard';
 import { DropZone } from './DropZone';
-import { Trip } from '@/types/bus';
+import { Trip, Stop } from '@/types/bus';
 
 interface DateRowProps {
   date: string;
@@ -13,6 +13,7 @@ interface DateRowProps {
   hinfahrten: Trip[];
   rueckfahrten: Trip[];
   nextDayKey: string;
+  stops: Stop[];
   selectedTrips: Set<string>;
   onToggleSelection: (tripId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
@@ -31,6 +32,7 @@ export const DateRow = ({
   hinfahrten,
   rueckfahrten,
   nextDayKey,
+  stops,
   selectedTrips,
   onToggleSelection,
   onUpdateGroup,
@@ -81,6 +83,7 @@ export const DateRow = ({
                     key={group.groupId}
                     groupId={group.groupId}
                     trips={group.trips}
+                    stops={stops}
                     onUpdateGroup={onUpdateGroup}
                     onCompleteGroup={onCompleteGroup}
                     onSetGroupToDraft={onSetGroupToDraft}
