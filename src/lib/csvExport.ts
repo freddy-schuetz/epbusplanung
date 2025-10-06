@@ -51,11 +51,12 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
     
     // Aggregate stops by location and time
     const aggregatedStops = groupStops.reduce((acc, stop) => {
-      const key = `${stop.Zeit}-${stop.Ort || 'Unbekannt'}`;
+      const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
+      const key = `${stop.Zeit}-${location}`;
       if (!acc[key]) {
         acc[key] = {
           time: stop.Zeit,
-          location: stop.Ort || 'Unbekannt',
+          location: location,
           passengers: stop.Anzahl || 0,
         };
       } else {

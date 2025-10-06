@@ -83,13 +83,14 @@ export const GroupForm = ({
     trips.some(trip => trip.reisecode === stop.Reisecode)
   );
 
-  // Group stops by Ort (location) and Zeit (time), sum passengers
+  // Group stops by location and time, sum passengers
   const aggregatedStops = groupStops.reduce((acc, stop) => {
-    const key = `${stop.Zeit || ''}-${stop.Ort || 'Unbekannt'}`;
+    const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
+    const key = `${stop.Zeit || ''}-${location}`;
     if (!acc[key]) {
       acc[key] = {
         time: stop.Zeit || '',
-        location: stop.Ort || 'Unbekannt',
+        location: location,
         passengers: stop.Anzahl || 0,
       };
     } else {

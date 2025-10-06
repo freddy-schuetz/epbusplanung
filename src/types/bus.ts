@@ -46,7 +46,7 @@ export interface Stop {
   Reisecode: string;
   Beförderung: string;
   Zeit: string;
-  Ort?: string;
+  'Zustieg/Ausstieg'?: string;
   Anzahl?: number;
 }
 
