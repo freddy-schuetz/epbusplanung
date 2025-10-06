@@ -474,10 +474,17 @@ const Index = () => {
       return;
     }
 
-    // Check if dragged trip is selected
-    const tripsToGroup = selectedTrips.has(draggedTrip.id)
-      ? trips.filter(t => selectedTrips.has(t.id))
-      : [draggedTrip];
+    // Determine which trips to group
+    let tripsToGroup: Trip[];
+    
+    // If multiple trips are selected AND the dragged trip is one of them
+    if (selectedTrips.size > 0 && selectedTrips.has(draggedTrip.id)) {
+      // Group ALL selected trips together
+      tripsToGroup = trips.filter(t => selectedTrips.has(t.id));
+    } else {
+      // Group only the dragged trip
+      tripsToGroup = [draggedTrip];
+    }
 
     // Only allow ungrouped trips
     const ungroupedTrips = tripsToGroup.filter(t => !t.groupId);
@@ -487,6 +494,7 @@ const Index = () => {
     }
 
     try {
+      // Create ONE group ID for all trips
       const groupId = crypto.randomUUID();
 
       // Create the bus_group first
@@ -496,6 +504,7 @@ const Index = () => {
       }, user.id);
 
       // INSERT new trips into Supabase (API trips are not in DB yet)
+      // ALL trips get the SAME groupId
       const tripsToInsert = ungroupedTrips.map(trip => ({
         datum: trip.datum,
         direction: trip.direction,
