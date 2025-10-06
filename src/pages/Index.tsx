@@ -11,7 +11,7 @@ import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchTrips, createTrips, updateTrip } from '@/lib/supabaseOperations';
+import { fetchTrips, createTrips, updateTrip, createBusGroup } from '@/lib/supabaseOperations';
 
 const API_URL = 'https://n8n.ep-reisen.app/webhook/busfahrten-api';
 
@@ -267,10 +267,16 @@ const Index = () => {
     const groupId = crypto.randomUUID();
     
     try {
+      // FIRST: Create the bus_group record
+      await createBusGroup({
+        id: groupId,
+        status: 'draft',
+      }, user.id);
+      
       // Get the selected trips
       const selectedTripsList = trips.filter(t => selectedTrips.has(t.id));
       
-      // Create entries in Supabase for each selected trip
+      // THEN: Create entries in Supabase for each selected trip with the group_id
       const tripsToCreate = selectedTripsList.map(trip => ({
         ...trip,
         groupId,
