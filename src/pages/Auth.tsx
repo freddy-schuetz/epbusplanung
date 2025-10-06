@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,30 +8,59 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 
 const Auth = () => {
+  const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { user, loading: authLoading, signIn, signUp } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    console.log('[Auth] Current user:', user?.email, 'Auth loading:', authLoading);
+    if (!authLoading && user) {
+      console.log('[Auth] User is logged in, redirecting to main page');
+      navigate('/');
+    }
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[Auth] Form submitted, isSignUp:', isSignUp);
     setLoading(true);
 
     try {
       if (isSignUp) {
+        console.log('[Auth] Calling signUp');
         await signUp(email, password);
         toast.success('Konto erstellt! Bitte bestätigen Sie Ihre E-Mail.');
       } else {
-        await signIn(email, password);
+        console.log('[Auth] Calling signIn');
+        const result = await signIn(email, password);
+        console.log('[Auth] Sign in result:', result);
         toast.success('Erfolgreich angemeldet!');
+        
+        // Force navigation after successful login
+        console.log('[Auth] Navigating to main page after successful login');
+        setTimeout(() => {
+          navigate('/');
+        }, 100);
       }
     } catch (error: any) {
+      console.error('[Auth] Authentication error:', error);
       toast.error(error.message || 'Ein Fehler ist aufgetreten');
     } finally {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Lädt...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-5">

@@ -32,8 +32,12 @@ const Index = () => {
 
   // Redirect to auth if not logged in
   useEffect(() => {
+    console.log('[Index] Auth state - User:', user?.email, 'Loading:', authLoading);
     if (!authLoading && !user) {
+      console.log('[Index] No user found, redirecting to auth');
       navigate('/auth');
+    } else if (!authLoading && user) {
+      console.log('[Index] User authenticated, loading trips');
     }
   }, [user, authLoading, navigate]);
 
@@ -70,10 +74,15 @@ const Index = () => {
   }, [trips, filterStatus, filterDirection]);
 
   const loadTripsFromSupabase = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('[Index] Cannot load trips - no user');
+      return;
+    }
     
+    console.log('[Index] Loading trips from Supabase for user:', user.email);
     try {
       const data = await fetchTrips(user.id);
+      console.log('[Index] Loaded trips:', data.length);
       const mappedTrips: Trip[] = data.map((dbTrip: any) => ({
         id: dbTrip.id,
         direction: dbTrip.direction as 'hin' | 'rueck',
@@ -420,6 +429,7 @@ const Index = () => {
   const today = getTodayString();
 
   if (authLoading) {
+    console.log('[Index] Still loading auth state...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Lädt...</p>
@@ -428,8 +438,11 @@ const Index = () => {
   }
 
   if (!user) {
+    console.log('[Index] No user, should redirect to auth');
     return null;
   }
+
+  console.log('[Index] Rendering main app for user:', user.email);
 
   return (
     <div className="min-h-screen p-5">
