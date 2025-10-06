@@ -79,9 +79,10 @@ export const GroupForm = ({
     }
   };
 
-  // Aggregate stops for this group
+  // Aggregate stops for this group - only include stops with valid time data
   const groupStops = stops.filter(stop => 
-    trips.some(trip => trip.reisecode === stop.Reisecode)
+    trips.some(trip => trip.reisecode === stop.Reisecode) &&
+    stop.Zeit && stop.Zeit.trim() !== '' // Only include stops with time
   );
 
   // Get base trip date from first trip
@@ -90,16 +91,14 @@ export const GroupForm = ({
   // Group stops by location and time, sum passengers, calculate dates
   const aggregatedStops = groupStops.reduce((acc, stop) => {
     const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
-    const stopTime = stop.Zeit || '';
+    const stopTime = stop.Zeit!; // We know it exists from filter above
     
     // Calculate actual date for this stop (handle overnight trips)
     let stopDate = baseTripDate;
-    if (stopTime) {
-      const hour = parseInt(stopTime.split(':')[0]);
-      // If time is before 06:00, assume it's the next day
-      if (hour < 6) {
-        stopDate = addDays(baseTripDate, 1);
-      }
+    const hour = parseInt(stopTime.split(':')[0]);
+    // If time is before 06:00, assume it's the next day
+    if (hour < 6) {
+      stopDate = addDays(baseTripDate, 1);
     }
     
     const key = `${stopDate}-${stopTime}-${location}`;
@@ -107,7 +106,7 @@ export const GroupForm = ({
       acc[key] = {
         date: stopDate,
         time: stopTime,
-        datetime: parseGermanDate(stopDate).getTime() + (stopTime ? parseInt(stopTime.split(':')[0]) * 3600000 + parseInt(stopTime.split(':')[1]) * 60000 : 0),
+        datetime: parseGermanDate(stopDate).getTime() + parseInt(stopTime.split(':')[0]) * 3600000 + parseInt(stopTime.split(':')[1]) * 60000,
         location: location,
         passengers: stop.Anzahl || 0,
       };

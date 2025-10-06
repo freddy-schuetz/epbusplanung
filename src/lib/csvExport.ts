@@ -44,9 +44,10 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
     
     const tripNumber = busGroupsMap.get(firstTrip.groupId || '') || firstTrip.groupId;
     
-    // Get stops for this group
+    // Get stops for this group - only with valid time data
     const groupStops = stops.filter(stop => 
-      groupTrips.some(trip => trip.reisecode === stop.Reisecode)
+      groupTrips.some(trip => trip.reisecode === stop.Reisecode) &&
+      stop.Zeit && stop.Zeit.trim() !== '' // Only include stops with time
     );
     
     // Get base trip date from first trip
@@ -55,18 +56,16 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
     // Aggregate stops by location and time, calculate dates
     const aggregatedStops = groupStops.reduce((acc, stop) => {
       const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
-      const stopTime = stop.Zeit || '';
+      const stopTime = stop.Zeit!; // We know it exists from filter above
       
       // Calculate actual date for this stop (handle overnight trips)
       let stopDate = baseTripDate;
-      if (stopTime) {
-        const hour = parseInt(stopTime.split(':')[0]);
-        // If time is before 06:00, assume it's the next day
-        if (hour < 6) {
-          const date = new Date(baseTripDate.split('.').reverse().join('-'));
-          date.setDate(date.getDate() + 1);
-          stopDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-        }
+      const hour = parseInt(stopTime.split(':')[0]);
+      // If time is before 06:00, assume it's the next day
+      if (hour < 6) {
+        const date = new Date(baseTripDate.split('.').reverse().join('-'));
+        date.setDate(date.getDate() + 1);
+        stopDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
       }
       
       const key = `${stopDate}-${stopTime}-${location}`;
@@ -74,7 +73,7 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
         acc[key] = {
           date: stopDate,
           time: stopTime,
-          datetime: new Date(`${stopDate.split('.').reverse().join('-')}T${stopTime || '00:00'}:00`).getTime(),
+          datetime: new Date(`${stopDate.split('.').reverse().join('-')}T${stopTime}:00`).getTime(),
           location: location,
           passengers: stop.Anzahl || 0,
         };
