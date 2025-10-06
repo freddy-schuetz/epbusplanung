@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Trip, BusDetails, Bus, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { toast } from 'sonner';
+import { parseGermanDate, addDays } from '@/lib/dateUtils';
 
 interface GroupFormProps {
   groupId: string;
@@ -83,13 +84,30 @@ export const GroupForm = ({
     trips.some(trip => trip.reisecode === stop.Reisecode)
   );
 
-  // Group stops by location and time, sum passengers
+  // Get base trip date from first trip
+  const baseTripDate = trips[0].datum; // "DD.MM.YYYY" format
+
+  // Group stops by location and time, sum passengers, calculate dates
   const aggregatedStops = groupStops.reduce((acc, stop) => {
     const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
-    const key = `${stop.Zeit || ''}-${location}`;
+    const stopTime = stop.Zeit || '';
+    
+    // Calculate actual date for this stop (handle overnight trips)
+    let stopDate = baseTripDate;
+    if (stopTime) {
+      const hour = parseInt(stopTime.split(':')[0]);
+      // If time is before 06:00, assume it's the next day
+      if (hour < 6) {
+        stopDate = addDays(baseTripDate, 1);
+      }
+    }
+    
+    const key = `${stopDate}-${stopTime}-${location}`;
     if (!acc[key]) {
       acc[key] = {
-        time: stop.Zeit || '',
+        date: stopDate,
+        time: stopTime,
+        datetime: parseGermanDate(stopDate).getTime() + (stopTime ? parseInt(stopTime.split(':')[0]) * 3600000 + parseInt(stopTime.split(':')[1]) * 60000 : 0),
         location: location,
         passengers: stop.Anzahl || 0,
       };
@@ -97,12 +115,10 @@ export const GroupForm = ({
       acc[key].passengers += stop.Anzahl || 0;
     }
     return acc;
-  }, {} as Record<string, { time: string; location: string; passengers: number }>);
+  }, {} as Record<string, { date: string; time: string; datetime: number; location: string; passengers: number }>);
 
-  // Sort by time
-  const sortedStops = Object.values(aggregatedStops).sort((a, b) => 
-    (a.time || '').localeCompare(b.time || '')
-  );
+  // Sort by actual datetime
+  const sortedStops = Object.values(aggregatedStops).sort((a, b) => a.datetime - b.datetime);
 
   return (
     <div className="space-y-5">
@@ -125,7 +141,7 @@ export const GroupForm = ({
           <div className="space-y-2">
             {sortedStops.map((stop, index) => (
               <div key={index} className="flex items-center gap-3 text-sm">
-                <span className="font-mono text-muted-foreground">{stop.time}</span>
+                <span className="font-mono text-muted-foreground">{stop.date} {stop.time}</span>
                 <span className="flex-1">{stop.location}</span>
                 <span className="font-semibold">{stop.passengers} PAX</span>
               </div>

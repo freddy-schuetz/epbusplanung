@@ -49,13 +49,32 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
       groupTrips.some(trip => trip.reisecode === stop.Reisecode)
     );
     
-    // Aggregate stops by location and time
+    // Get base trip date from first trip
+    const baseTripDate = firstTrip.datum; // "DD.MM.YYYY" format
+    
+    // Aggregate stops by location and time, calculate dates
     const aggregatedStops = groupStops.reduce((acc, stop) => {
       const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
-      const key = `${stop.Zeit}-${location}`;
+      const stopTime = stop.Zeit || '';
+      
+      // Calculate actual date for this stop (handle overnight trips)
+      let stopDate = baseTripDate;
+      if (stopTime) {
+        const hour = parseInt(stopTime.split(':')[0]);
+        // If time is before 06:00, assume it's the next day
+        if (hour < 6) {
+          const date = new Date(baseTripDate.split('.').reverse().join('-'));
+          date.setDate(date.getDate() + 1);
+          stopDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+        }
+      }
+      
+      const key = `${stopDate}-${stopTime}-${location}`;
       if (!acc[key]) {
         acc[key] = {
-          time: stop.Zeit,
+          date: stopDate,
+          time: stopTime,
+          datetime: new Date(`${stopDate.split('.').reverse().join('-')}T${stopTime || '00:00'}:00`).getTime(),
           location: location,
           passengers: stop.Anzahl || 0,
         };
@@ -63,12 +82,12 @@ export async function exportToCSV(trips: Trip[], stops: Stop[]): Promise<void> {
         acc[key].passengers += stop.Anzahl || 0;
       }
       return acc;
-    }, {} as Record<string, { time: string; location: string; passengers: number }>);
+    }, {} as Record<string, { date: string; time: string; datetime: number; location: string; passengers: number }>);
     
-    // Sort by time and format
+    // Sort by actual datetime and format
     const sortedStops = Object.values(aggregatedStops)
-      .sort((a, b) => a.time.localeCompare(b.time))
-      .map(stop => `${stop.time} ${stop.location} (${stop.passengers} PAX)`)
+      .sort((a, b) => a.datetime - b.datetime)
+      .map(stop => `${stop.date} ${stop.time} ${stop.location} (${stop.passengers} PAX)`)
       .join(' | ');
     
     csv += `${tripNumber};${busName};${directionText};${reisecodes};${firstTrip.datum};${totalPassengers};${firstTrip.busDetails?.kmHinweg || ''};${firstTrip.busDetails?.kmRueckweg || ''};${firstTrip.busDetails?.luggage || ''};${firstTrip.busDetails?.accommodation || ''};${firstTrip.busDetails?.notes || ''};${sortedStops}\n`;
