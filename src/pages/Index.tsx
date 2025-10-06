@@ -338,7 +338,7 @@ const Index = () => {
       // If busDetails are being updated, save them to bus_groups table
       if (updates.busDetails) {
         await updateBusGroup(groupId, {
-          bus_id: updates.busDetails.busId,
+          bus_id: updates.busDetails.busId || null, // Use null, not empty string
           km_hinweg: updates.busDetails.kmHinweg,
           km_rueckweg: updates.busDetails.kmRueckweg,
           luggage: updates.busDetails.luggage,
@@ -427,12 +427,16 @@ const Index = () => {
   const dissolveGroup = async (groupId: string) => {
     if (!confirm('Busplanung wirklich auflösen?')) return;
     
+    console.log('[dissolveGroup] Attempting to delete bus_group with ID:', groupId);
+    
     try {
       // First delete trips
-      const { error: tripsError } = await supabase
+      const { data: tripsData, error: tripsError, status: tripsStatus } = await supabase
         .from('trips')
         .delete()
         .eq('group_id', groupId);
+      
+      console.log('[dissolveGroup] Delete trips response:', { tripsData, tripsError, tripsStatus });
       
       if (tripsError) {
         console.error('[dissolveGroup] Error deleting trips:', tripsError);
@@ -440,13 +444,17 @@ const Index = () => {
       }
       
       // Then delete bus_group
-      const { error: groupError } = await supabase
+      const { data: groupData, error: groupError, status: groupStatus } = await supabase
         .from('bus_groups')
         .delete()
         .eq('id', groupId);
       
-      if (groupError) {
-        console.error('[dissolveGroup] Error deleting bus_group:', groupError);
+      console.log('[dissolveGroup] Delete bus_group response:', { groupData, groupError, groupStatus });
+      
+      if (!groupError && groupStatus === 204) {
+        console.log('[dissolveGroup] Bus group deleted successfully');
+      } else if (groupError) {
+        console.error('[dissolveGroup] Bus group deletion failed:', groupError);
         throw groupError;
       }
       
