@@ -289,6 +289,43 @@ const Index = () => {
     setSelectedTrips(new Set());
   };
 
+  const validateTripCombination = (tripsToValidate: Trip[]): boolean => {
+    const hinfahrten = tripsToValidate.filter(t => t.direction === 'hin');
+    const rueckfahrten = tripsToValidate.filter(t => t.direction === 'rueck');
+    
+    // Check all Hinfahrten have same date
+    if (hinfahrten.length > 1) {
+      const hinDates = new Set(hinfahrten.map(t => t.datum));
+      if (hinDates.size > 1) {
+        toast.error('Alle Hinfahrten müssen am gleichen Datum sein');
+        return false;
+      }
+    }
+    
+    // Check all Rückfahrten have same date
+    if (rueckfahrten.length > 1) {
+      const rueckDates = new Set(rueckfahrten.map(t => t.datum));
+      if (rueckDates.size > 1) {
+        toast.error('Alle Rückfahrten müssen am gleichen Datum sein');
+        return false;
+      }
+    }
+    
+    // Check Hin+Rück date difference if mixing directions
+    if (hinfahrten.length > 0 && rueckfahrten.length > 0) {
+      const hinDate = parseGermanDate(hinfahrten[0].datum);
+      const rueckDate = parseGermanDate(rueckfahrten[0].datum);
+      const daysDiff = Math.round((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff < 1 || daysDiff > 7) {
+        toast.error('Rückfahrt muss 1-7 Tage nach Hinfahrt liegen');
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
   const createGroupFromSelection = async () => {
     if (!user || selectedTrips.size === 0) {
       toast.error('Bitte wählen Sie mindestens eine Reise aus');
@@ -296,6 +333,14 @@ const Index = () => {
     }
 
     console.log('[Index] Creating group from selection:', selectedTrips.size, 'trips');
+    
+    // Get the selected trips for validation
+    const selectedTripsList = trips.filter(t => selectedTrips.has(t.id));
+    
+    // Validate trip combination
+    if (!validateTripCombination(selectedTripsList)) {
+      return;
+    }
     
     // Generate proper UUID for group_id
     const groupId = crypto.randomUUID();
@@ -322,9 +367,6 @@ const Index = () => {
         trip_number: tripNumber,
         status: 'draft',
       }, user.id);
-      
-      // Get the selected trips
-      const selectedTripsList = trips.filter(t => selectedTrips.has(t.id));
       
       // THEN: Create entries in Supabase for each selected trip with the group_id
       const tripsToCreate = selectedTripsList.map(trip => ({
@@ -541,6 +583,11 @@ const Index = () => {
     const ungroupedTrips = tripsToGroup.filter(t => !t.groupId);
     if (ungroupedTrips.length === 0) {
       toast.error('Nur ungeplante Reisen können gruppiert werden');
+      return;
+    }
+    
+    // Validate trip combination
+    if (!validateTripCombination(ungroupedTrips)) {
       return;
     }
 
