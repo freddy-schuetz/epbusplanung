@@ -11,7 +11,7 @@ import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchTrips, createTrips, updateTrip, createBusGroup } from '@/lib/supabaseOperations';
+import { fetchTrips, createTrips, updateTrip, createBusGroup, updateBusGroup, fetchBusGroups } from '@/lib/supabaseOperations';
 
 const API_URL = 'https://n8n.ep-reisen.app/webhook/busfahrten-api';
 
@@ -107,6 +107,23 @@ const Index = () => {
     
     try {
       const data = await fetchTrips(user.id);
+      const busGroupsData = await fetchBusGroups(user.id);
+      
+      // Create a map of bus_groups by id for easy lookup
+      const busGroupsMap = new Map(
+        busGroupsData.map(bg => [
+          bg.id,
+          {
+            busId: bg.bus_id || '',
+            kmHinweg: bg.km_hinweg || '',
+            kmRueckweg: bg.km_rueckweg || '',
+            luggage: bg.luggage || '',
+            accommodation: bg.accommodation || '',
+            notes: bg.notes || '',
+          }
+        ])
+      );
+      
       return data.map((dbTrip: any) => ({
         id: dbTrip.id,
         direction: dbTrip.direction as 'hin' | 'rueck',
@@ -119,8 +136,7 @@ const Index = () => {
         buchungen: dbTrip.buchungen || 0,
         planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
         groupId: dbTrip.group_id,
-        tripNumber: null, // trip_number is only in bus_groups
-        busDetails: null, // TODO: Load from bus_groups table
+        busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
       }));
     } catch (error) {
       console.error('[Index] Error loading planned trips:', error);
@@ -300,11 +316,17 @@ const Index = () => {
   };
 
   const updateGroup = async (groupId: string, updates: Partial<Trip>) => {
-    const groupTrips = trips.filter(t => t.groupId === groupId);
-    
     try {
-      for (const trip of groupTrips) {
-        await updateTrip(trip.id, updates);
+      // If busDetails are being updated, save them to bus_groups table
+      if (updates.busDetails) {
+        await updateBusGroup(groupId, {
+          bus_id: updates.busDetails.busId,
+          km_hinweg: updates.busDetails.kmHinweg,
+          km_rueckweg: updates.busDetails.kmRueckweg,
+          luggage: updates.busDetails.luggage,
+          accommodation: updates.busDetails.accommodation,
+          notes: updates.busDetails.notes,
+        });
       }
       
       await loadAllData();
