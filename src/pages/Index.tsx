@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StatsCard } from '@/components/StatsCard';
 import { ControlBar } from '@/components/ControlBar';
 import { DateRow } from '@/components/DateRow';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Trip, Stop, APIResponse, APIBooking } from '@/types/bus';
-import { loadTrips, saveTrips, loadStops, saveStops } from '@/lib/storage';
-import { convertDateToAPI, formatDate, parseGermanDate, getWeekdayName, getTodayString, addDays } from '@/lib/dateUtils';
+import { convertDateToAPI, parseGermanDate, getWeekdayName, getTodayString, addDays } from '@/lib/dateUtils';
 import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { fetchTrips, createTrips, updateTrip } from '@/lib/supabaseOperations';
 
 const API_URL = 'https://n8n.ep-reisen.app/webhook/busfahrten-api';
 
 const Index = () => {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [stops, setStops] = useState<Stop[]>([]);
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
@@ -25,17 +30,71 @@ const Index = () => {
   const [filterDirection, setFilterDirection] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Redirect to auth if not logged in
   useEffect(() => {
-    const loadedTrips = loadTrips();
-    const loadedStops = loadStops();
-    setTrips(loadedTrips);
-    setStops(loadedStops);
-    setFilteredTrips(loadedTrips);
-  }, []);
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
 
+  // Load trips from Supabase
+  useEffect(() => {
+    if (user) {
+      loadTripsFromSupabase();
+    }
+  }, [user]);
+
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('trips-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trips', filter: `user_id=eq.${user.id}` },
+        () => {
+          loadTripsFromSupabase();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Apply filters
   useEffect(() => {
     applyFilters();
   }, [trips, filterStatus, filterDirection]);
+
+  const loadTripsFromSupabase = async () => {
+    if (!user) return;
+    
+    try {
+      const data = await fetchTrips(user.id);
+      const mappedTrips: Trip[] = data.map((dbTrip: any) => ({
+        id: dbTrip.id,
+        direction: dbTrip.direction as 'hin' | 'rueck',
+        reisecode: dbTrip.reisecode,
+        produktcode: dbTrip.produktcode || '',
+        reise: dbTrip.reise,
+        datum: dbTrip.datum,
+        uhrzeit: dbTrip.uhrzeit || '',
+        kontingent: dbTrip.kontingent || 0,
+        buchungen: dbTrip.buchungen || 0,
+        planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
+        groupId: dbTrip.group_id,
+        tripNumber: dbTrip.trip_number,
+        busDetails: null,
+      }));
+      setTrips(mappedTrips);
+    } catch (error) {
+      console.error('Error loading trips:', error);
+      toast.error('Fehler beim Laden der Reisen');
+    }
+  };
 
   const applyFilters = () => {
     let filtered = trips;
@@ -52,6 +111,8 @@ const Index = () => {
   };
 
   const loadFromAPI = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
     try {
       const response = await fetch(API_URL, {
@@ -69,7 +130,7 @@ const Index = () => {
       const result: APIResponse = await response.json();
 
       if (result.success && result.data) {
-        mergeWithExistingData(result.data.trips, result.data.stops);
+        await mergeWithExistingData(result.data.trips, result.data.stops);
         toast.success('Daten erfolgreich geladen');
       }
     } catch (error) {
@@ -80,15 +141,17 @@ const Index = () => {
     }
   };
 
-  const mergeWithExistingData = (apiTrips: APIBooking[], apiStops: Stop[]) => {
+  const mergeWithExistingData = async (apiTrips: APIBooking[], apiStops: Stop[]) => {
+    if (!user) return;
+
     const plannedTrips = trips.filter(trip => trip.planningStatus !== 'unplanned');
-    let newTrips = [...plannedTrips];
+    const newTripsToCreate: Partial<Trip>[] = [];
 
     apiTrips.forEach(booking => {
       // Hinfahrt
       if (booking['Hinfahrt von']) {
         const hinId = `${booking.Reisecode}-HIN`;
-        const existingPlanned = plannedTrips.find(t => t.id === hinId);
+        const existingPlanned = plannedTrips.find(t => t.reisecode === booking.Reisecode && t.direction === 'hin');
 
         if (!existingPlanned) {
           const hinStops = apiStops.filter(s => 
@@ -96,7 +159,7 @@ const Index = () => {
             s.Beförderung && s.Beförderung.toLowerCase().includes('hinfahrt')
           );
 
-          newTrips.push({
+          newTripsToCreate.push({
             id: hinId,
             direction: 'hin',
             reisecode: booking.Reisecode,
@@ -117,7 +180,7 @@ const Index = () => {
       // Rückfahrt
       if (booking['Rückfahrt von'] || booking['Rückfahrt bis']) {
         const rueckId = `${booking.Reisecode}-RUECK`;
-        const existingPlanned = plannedTrips.find(t => t.id === rueckId);
+        const existingPlanned = plannedTrips.find(t => t.reisecode === booking.Reisecode && t.direction === 'rueck');
 
         if (!existingPlanned) {
           const rueckStops = apiStops.filter(s => 
@@ -125,7 +188,7 @@ const Index = () => {
             s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
           );
 
-          newTrips.push({
+          newTripsToCreate.push({
             id: rueckId,
             direction: 'rueck',
             reisecode: booking.Reisecode,
@@ -144,10 +207,12 @@ const Index = () => {
       }
     });
 
-    setTrips(newTrips);
+    if (newTripsToCreate.length > 0) {
+      await createTrips(newTripsToCreate, user.id);
+    }
+
     setStops(apiStops);
-    saveTrips(newTrips);
-    saveStops(apiStops);
+    await loadTripsFromSupabase();
   };
 
   const setDateRange = (range: 'season' | 'month') => {
@@ -178,115 +243,102 @@ const Index = () => {
     setSelectedTrips(new Set());
   };
 
-  const createGroupFromSelection = () => {
+  const createGroupFromSelection = async () => {
     if (selectedTrips.size === 0) {
       toast.error('Bitte wählen Sie mindestens eine Reise aus');
       return;
     }
 
     const groupId = `group-${Date.now()}-${nextGroupId}`;
-    const updatedTrips = trips.map(trip => {
-      if (selectedTrips.has(trip.id)) {
-        return {
-          ...trip,
-          groupId,
-          planningStatus: 'draft' as const,
-          tripNumber: String(nextGroupId).padStart(3, '0'),
-        };
-      }
-      return trip;
-    });
+    
+    for (const tripId of Array.from(selectedTrips)) {
+      await updateTrip(tripId, {
+        groupId,
+        planningStatus: 'draft',
+        tripNumber: String(nextGroupId).padStart(3, '0'),
+      });
+    }
 
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
     setSelectedTrips(new Set());
     setNextGroupId(nextGroupId + 1);
     toast.success('Busplanung erstellt');
+    await loadTripsFromSupabase();
   };
 
-  const updateGroup = (groupId: string, updates: Partial<Trip>) => {
-    const updatedTrips = trips.map(trip => {
-      if (trip.groupId === groupId) {
-        return { ...trip, ...updates };
-      }
-      return trip;
-    });
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+  const updateGroup = async (groupId: string, updates: Partial<Trip>) => {
+    const groupTrips = trips.filter(t => t.groupId === groupId);
+    
+    for (const trip of groupTrips) {
+      await updateTrip(trip.id, updates);
+    }
+    
+    await loadTripsFromSupabase();
   };
 
-  const completeGroup = (groupId: string) => {
+  const completeGroup = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     if (!groupTrips[0]?.busDetails?.busId) {
       toast.error('Bitte wählen Sie einen Bus aus');
       return;
     }
 
-    const updatedTrips = trips.map(trip => {
-      if (trip.groupId === groupId) {
-        return { ...trip, planningStatus: 'completed' as const };
-      }
-      return trip;
-    });
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+    for (const trip of groupTrips) {
+      await updateTrip(trip.id, { planningStatus: 'completed' });
+    }
+    
     toast.success('Busplanung fertiggestellt');
+    await loadTripsFromSupabase();
   };
 
-  const setGroupToDraft = (groupId: string) => {
-    const updatedTrips = trips.map(trip => {
-      if (trip.groupId === groupId) {
-        return { ...trip, planningStatus: 'draft' as const };
-      }
-      return trip;
-    });
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+  const setGroupToDraft = async (groupId: string) => {
+    const groupTrips = trips.filter(t => t.groupId === groupId);
+    
+    for (const trip of groupTrips) {
+      await updateTrip(trip.id, { planningStatus: 'draft' });
+    }
+    
     toast.info('Busplanung auf Entwurf zurückgesetzt');
+    await loadTripsFromSupabase();
   };
 
-  const lockGroup = (groupId: string) => {
-    const updatedTrips = trips.map(trip => {
-      if (trip.groupId === groupId) {
-        return { ...trip, planningStatus: 'locked' as const };
-      }
-      return trip;
-    });
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+  const lockGroup = async (groupId: string) => {
+    const groupTrips = trips.filter(t => t.groupId === groupId);
+    
+    for (const trip of groupTrips) {
+      await updateTrip(trip.id, { planningStatus: 'locked' });
+    }
+    
     toast.info('Busplanung gesperrt');
+    await loadTripsFromSupabase();
   };
 
-  const unlockGroup = (groupId: string) => {
+  const unlockGroup = async (groupId: string) => {
     if (confirm('Möchten Sie diese Busplanung entsperren?')) {
-      const updatedTrips = trips.map(trip => {
-        if (trip.groupId === groupId) {
-          return { ...trip, planningStatus: 'completed' as const };
-        }
-        return trip;
-      });
-      setTrips(updatedTrips);
-      saveTrips(updatedTrips);
+      const groupTrips = trips.filter(t => t.groupId === groupId);
+      
+      for (const trip of groupTrips) {
+        await updateTrip(trip.id, { planningStatus: 'completed' });
+      }
+      
       toast.info('Busplanung entsperrt');
+      await loadTripsFromSupabase();
     }
   };
 
-  const dissolveGroup = (groupId: string) => {
-    const updatedTrips = trips.map(trip => {
-      if (trip.groupId === groupId) {
-        return {
-          ...trip,
-          groupId: null,
-          tripNumber: null,
-          planningStatus: 'unplanned' as const,
-          busDetails: null,
-        };
-      }
-      return trip;
-    });
-    setTrips(updatedTrips);
-    saveTrips(updatedTrips);
+  const dissolveGroup = async (groupId: string) => {
+    const groupTrips = trips.filter(t => t.groupId === groupId);
+    
+    for (const trip of groupTrips) {
+      await updateTrip(trip.id, {
+        groupId: null,
+        tripNumber: null,
+        planningStatus: 'unplanned',
+        busDetails: null,
+      });
+    }
+    
     toast.info('Busplanung aufgelöst');
+    await loadTripsFromSupabase();
   };
 
   const handleExportCSV = () => {
@@ -299,9 +351,16 @@ const Index = () => {
   };
 
   const toggleAllSections = () => {
-    // This would toggle all DateRow components
-    // Implementation would require lifting state or using a ref pattern
     toast.info('Funktion in Entwicklung');
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (error) {
+      toast.error('Fehler beim Abmelden');
+    }
   };
 
   // Organize data by date
@@ -360,12 +419,32 @@ const Index = () => {
   const data = organizedData();
   const today = getTodayString();
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Lädt...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen p-5">
       <div className="max-w-[1800px] mx-auto bg-card/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-5xl font-bold text-center mb-8 gradient-primary bg-clip-text text-transparent">
-          🚌 Busplanungs-Management System 5.1
-        </h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-5xl font-bold gradient-primary bg-clip-text text-transparent">
+            🚌 Busplanungs-Management System 5.1
+          </h1>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">{user.email}</span>
+            <Button onClick={handleSignOut} variant="outline" size="sm">
+              Abmelden
+            </Button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
           <StatsCard value={stats.total} label="Reisen gesamt" />

@@ -11,8 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Trip, BusDetails } from '@/types/bus';
-import { BUSES } from '@/lib/buses';
+import { Trip, BusDetails, Bus } from '@/types/bus';
+import { fetchBuses } from '@/lib/supabaseOperations';
 import { toast } from 'sonner';
 
 interface GroupFormProps {
@@ -36,6 +36,7 @@ export const GroupForm = ({
   const isLocked = firstTrip.planningStatus === 'locked';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
 
+  const [buses, setBuses] = useState<Bus[]>([]);
   const [busDetails, setBusDetails] = useState<BusDetails>({
     busId: firstTrip.busDetails?.busId || '',
     kmHinweg: firstTrip.busDetails?.kmHinweg || '',
@@ -44,6 +45,10 @@ export const GroupForm = ({
     accommodation: firstTrip.busDetails?.accommodation || '',
     notes: firstTrip.busDetails?.notes || '',
   });
+
+  useEffect(() => {
+    fetchBuses().then(setBuses).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (firstTrip.busDetails) {
@@ -98,7 +103,7 @@ export const GroupForm = ({
               <SelectValue placeholder="-- Bitte wählen --" />
             </SelectTrigger>
             <SelectContent>
-              {BUSES.map(bus => (
+              {buses.map(bus => (
                 <SelectItem key={bus.id} value={bus.id}>
                   {bus.contractual ? '★ ' : ''}{bus.name} ({bus.seats} Plätze)
                 </SelectItem>

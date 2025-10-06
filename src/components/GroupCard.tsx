@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
-import { Trip } from '@/types/bus';
-import { BUSES } from '@/lib/buses';
+import { Trip, Bus } from '@/types/bus';
+import { fetchBuses } from '@/lib/supabaseOperations';
 
 interface GroupCardProps {
   groupId: string;
@@ -28,15 +28,20 @@ export const GroupCard = ({
   onDissolveGroup,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [buses, setBuses] = useState<Bus[]>([]);
   const firstTrip = trips[0];
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
+
+  useEffect(() => {
+    fetchBuses().then(setBuses).catch(console.error);
+  }, []);
   
   let busInfo = '';
   if (firstTrip.busDetails?.busId) {
-    const bus = BUSES.find(b => b.id === firstTrip.busDetails!.busId);
+    const bus = buses.find(b => b.id === firstTrip.busDetails!.busId);
     if (bus) busInfo = bus.name;
   }
 
