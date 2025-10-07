@@ -13,7 +13,7 @@ interface TripCardProps {
   onToggleSelection: (tripId: string) => void;
 }
 
-export const TripCard = ({ trip, stops, isSelected, onToggleSelection }: TripCardProps) => {
+export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: TripCardProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: trip.id,
     data: {
@@ -27,8 +27,8 @@ export const TripCard = ({ trip, stops, isSelected, onToggleSelection }: TripCar
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
-  // Calculate route display from stops
-  const tripStops = stops.filter(
+  // Calculate route display from stops (safely handle undefined/empty stops)
+  const tripStops = (stops || []).filter(
     stop => stop.Reisecode === trip.reisecode && 
     stop.Beförderung?.toLowerCase().includes(trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt') &&
     stop.Zeit && stop.Zeit.trim() !== ''
