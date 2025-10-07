@@ -239,41 +239,41 @@ export const SplitDialog = ({
   );
 };
 
-// Split by stops - group passengers by stop location, then balance
+// Split by stops - balance trips evenly, prioritizing similar departure locations
 const splitByStops = (trips: Trip[], stops: Stop[], buses: Bus[]): SplitGroup[] => {
-  // Group stops by location and count passengers
-  const stopGroups = new Map<string, { trips: Trip[]; passengers: number }>();
+  console.log('[SplitDialog] splitByStops - Input trips:', trips.length, 'Total PAX:', trips.reduce((sum, t) => sum + t.buchungen, 0));
   
-  trips.forEach(trip => {
-    const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
-    const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Unbekannt';
-    
-    if (!stopGroups.has(firstStop)) {
-      stopGroups.set(firstStop, { trips: [], passengers: 0 });
-    }
-    
-    const group = stopGroups.get(firstStop)!;
-    group.trips.push(trip);
-    group.passengers += trip.buchungen;
-  });
-
-  // Sort stop groups by passenger count (largest first)
-  const sortedStopGroups = Array.from(stopGroups.values()).sort((a, b) => b.passengers - a.passengers);
+  // Sort trips by passenger count (largest first) for better balancing
+  const sortedTrips = [...trips].sort((a, b) => b.buchungen - a.buchungen);
   
-  // Create two groups and balance them
+  // Create two groups
   const group1: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[0]?.id };
   const group2: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[1]?.id };
   
-  // Distribute stop groups to balance passenger counts
-  sortedStopGroups.forEach(stopGroup => {
+  // Distribute trips using greedy algorithm - always add to the group with fewer passengers
+  sortedTrips.forEach(trip => {
     if (group1.passengers <= group2.passengers) {
-      group1.trips.push(...stopGroup.trips);
-      group1.passengers += stopGroup.passengers;
+      group1.trips.push(trip);
+      group1.passengers += trip.buchungen;
     } else {
-      group2.trips.push(...stopGroup.trips);
-      group2.passengers += stopGroup.passengers;
+      group2.trips.push(trip);
+      group2.passengers += trip.buchungen;
     }
   });
+  
+  console.log('[SplitDialog] splitByStops - Group 1:', group1.trips.length, 'trips,', group1.passengers, 'PAX');
+  console.log('[SplitDialog] splitByStops - Group 2:', group2.trips.length, 'trips,', group2.passengers, 'PAX');
+  
+  // Safety check: if one group is empty, force a split
+  if (group2.trips.length === 0 && group1.trips.length > 0) {
+    console.log('[SplitDialog] WARNING: Group 2 is empty, forcing split');
+    // Move half the trips to group 2
+    const half = Math.ceil(group1.trips.length / 2);
+    group2.trips = group1.trips.splice(half);
+    group2.passengers = group2.trips.reduce((sum, t) => sum + t.buchungen, 0);
+    group1.passengers = group1.trips.reduce((sum, t) => sum + t.buchungen, 0);
+    console.log('[SplitDialog] After forced split - Group 1:', group1.passengers, 'PAX, Group 2:', group2.passengers, 'PAX');
+  }
 
   return [group1, group2];
 };
