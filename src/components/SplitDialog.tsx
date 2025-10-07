@@ -74,11 +74,23 @@ export const SplitDialog = ({
       }
     });
     
+    // Debug logging
+    console.log('[SplitDialog] Capacity calculation:');
+    console.log('  - Total stops:', enhancedStops.length);
+    console.log('  - Bus 1 PAX:', bus1Pax);
+    console.log('  - Bus 2 PAX:', bus2Pax);
+    console.log('  - Total assigned:', bus1Pax + bus2Pax);
+    console.log('  - Total from trips:', totalPax);
+    console.log('  - Stops passengers sum:', enhancedStops.reduce((sum, s) => sum + s.passengers, 0));
+    
     return { bus1Pax, bus2Pax };
   };
   
   const { bus1Pax, bus2Pax } = calculateCapacity();
-  const unassignedPax = totalPax - bus1Pax - bus2Pax;
+  
+  // Calculate unassigned based on stops total, not trips total
+  const totalStopsPax = enhancedStops.reduce((sum, s) => sum + s.passengers, 0);
+  const unassignedPax = totalStopsPax - bus1Pax - bus2Pax;
   
   // Validate capacity
   const bus1 = buses.find(b => b.id === bus1Id);
