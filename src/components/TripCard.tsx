@@ -27,6 +27,12 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
+  // Extract destination from trip name (e.g., "Davos - Sportclub Weissfluh" → "Davos")
+  const extractDestination = (tripName: string) => {
+    const parts = tripName.split(' - ');
+    return parts[0]?.trim() || 'Ziel';
+  };
+
   // Calculate route display from stops (safely handle undefined/empty stops)
   const filteredStops = (stops || []).filter(
     stop => stop.Reisecode === trip.reisecode && 
@@ -60,8 +66,8 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   });
 
   const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Start';
-  const lastStop = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
-  const routeDisplay = tripStops.length > 0 ? `${firstStop} → ${lastStop}` : trip.reise;
+  const destination = extractDestination(trip.reise); // Use actual destination from trip name
+  const routeDisplay = tripStops.length > 0 ? `${firstStop} → ${destination}` : trip.reise;
 
   return (
     <div

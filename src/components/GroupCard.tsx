@@ -39,7 +39,13 @@ export const GroupCard = ({
   const hasRueck = trips.some(t => t.direction === 'rueck');
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
 
-  // Calculate route display (First Stop → Last Stop)
+  // Extract destination from trip name (e.g., "Davos - Sportclub Weissfluh" → "Davos")
+  const extractDestination = (tripName: string) => {
+    const parts = tripName.split(' - ');
+    return parts[0]?.trim() || 'Ziel';
+  };
+
+  // Calculate route display (First Stop → Destination)
   const calculateRoute = () => {
     const groupStops = stops.filter(stop => 
       trips.some(trip => trip.reisecode === stop.Reisecode) &&
@@ -67,8 +73,9 @@ export const GroupCard = ({
     });
 
     const firstStop = sortedStops[0]?.['Zustieg/Ausstieg'] || 'Start';
-    const lastStop = sortedStops[sortedStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
-    return `${firstStop} → ${lastStop}`;
+    // Use actual destination from trip name, not last pickup
+    const destination = extractDestination(trips[0].reise);
+    return `${firstStop} → ${destination}`;
   };
 
   const routeDisplay = calculateRoute();
