@@ -418,6 +418,33 @@ const Index = () => {
     console.log('[Index] Splitting group into', splitGroups.length, 'parts');
     
     try {
+      // First, dissolve the original group (without confirmation)
+      console.log('[Index] Dissolving original group:', groupId);
+      
+      // Delete trips
+      const { error: tripsError } = await supabase
+        .from('trips')
+        .delete()
+        .eq('group_id', groupId);
+      
+      if (tripsError) {
+        console.error('[Index] Error deleting trips:', tripsError);
+        throw tripsError;
+      }
+      
+      // Delete bus_group
+      const { error: groupError } = await supabase
+        .from('bus_groups')
+        .delete()
+        .eq('id', groupId);
+      
+      if (groupError) {
+        console.error('[Index] Error deleting bus_group:', groupError);
+        throw groupError;
+      }
+      
+      console.log('[Index] Original group dissolved successfully');
+      
       // Get next trip number for the base
       const { data: lastGroup } = await supabase
         .from('bus_groups')
@@ -436,15 +463,15 @@ const Index = () => {
       // Create each split group
       for (let i = 0; i < splitGroups.length; i++) {
         const splitGroup = splitGroups[i];
-        const groupId = crypto.randomUUID();
+        const newGroupId = crypto.randomUUID();
         const suffix = String.fromCharCode(97 + i); // 'a', 'b', 'c', etc.
         const tripNumber = `${baseTripNumber}${suffix}`;
         
-        console.log(`[Index] Creating split group ${i + 1}/${splitGroups.length} with trip number ${tripNumber}`);
+        console.log(`[Index] Creating split group ${i + 1}/${splitGroups.length} with trip number ${tripNumber}, ${splitGroup.passengers} PAX`);
         
         // Create bus_group
         await createBusGroup({
-          id: groupId,
+          id: newGroupId,
           trip_number: tripNumber,
           status: 'draft',
           split_group_id: splitGroupId,
@@ -464,10 +491,11 @@ const Index = () => {
           buchungen: trip.buchungen,
           kontingent: trip.kontingent,
           planningStatus: 'draft' as const,
-          groupId: groupId,
+          groupId: newGroupId,
         }));
         
         await createTrips(tripsToInsert, user.id);
+        console.log(`[Index] Created ${tripsToInsert.length} trips for group ${tripNumber}`);
       }
       
       toast.success(`Gruppe in ${splitGroups.length} Busse aufgeteilt`);
