@@ -348,7 +348,7 @@ export const GroupForm = ({
         open={showSplitDialog}
         onOpenChange={setShowSplitDialog}
         trips={trips}
-        stops={stops}
+        stops={groupStops}
         buses={buses}
         onSplit={handleSplit}
       />
