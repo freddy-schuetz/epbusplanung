@@ -94,8 +94,12 @@ export const SplitDialog = ({
     const targetPax = Math.ceil(totalPax / 2);
     const newAssignments: Record<string, 'bus1' | 'bus2'> = {};
     
-    // Sort stops by time
-    const sortedStops = [...enhancedStops].sort((a, b) => a.time.localeCompare(b.time));
+    // Sort stops by time (handle null/undefined values)
+    const sortedStops = [...enhancedStops].sort((a, b) => {
+      const timeA = a.time || '';
+      const timeB = b.time || '';
+      return timeA.localeCompare(timeB);
+    });
     
     let bus1Current = 0;
     let bus2Current = 0;
