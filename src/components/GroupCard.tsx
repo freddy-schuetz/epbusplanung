@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
@@ -33,11 +34,14 @@ export const GroupCard = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
+  const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
   const firstTrip = trips[0];
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
+  
+  const isSplitGroup = busGroup && busGroup.total_parts > 1;
 
   // Extract destination from trip name (e.g., "Davos - Sportclub Weissfluh" → "Davos")
   const extractDestination = (tripName: string) => {
@@ -83,7 +87,7 @@ export const GroupCard = ({
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
     
-    // Fetch bus group data to get trip_number
+    // Fetch bus group data to get trip_number and split info
     const fetchBusGroup = async () => {
       const { data } = await supabase
         .from('bus_groups')
@@ -91,7 +95,20 @@ export const GroupCard = ({
         .eq('id', groupId)
         .single();
       
-      if (data) setBusGroup(data);
+      if (data) {
+        setBusGroup(data);
+        
+        // If this is a split group, fetch linked groups
+        if (data.split_group_id) {
+          const { data: linked } = await supabase
+            .from('bus_groups')
+            .select('*')
+            .eq('split_group_id', data.split_group_id)
+            .neq('id', groupId);
+          
+          if (linked) setLinkedGroups(linked);
+        }
+      }
     };
     
     fetchBusGroup();
@@ -146,6 +163,11 @@ export const GroupCard = ({
               Fahrt-Nr: {busGroup.trip_number}
             </span>
           )}
+          {isSplitGroup && (
+            <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
+              Teil {busGroup.part_number}/{busGroup.total_parts}
+            </Badge>
+          )}
           {routeDisplay && (
             <span className="bg-white/20 px-3 py-1 rounded font-semibold">
               {routeDisplay}
@@ -168,7 +190,24 @@ export const GroupCard = ({
       </div>
       
       {isExpanded && (
-        <div className="bg-muted/30 p-5">
+        <div className="bg-muted/30 p-5 space-y-4">
+          {isSplitGroup && linkedGroups.length > 0 && (
+            <div className="bg-card border-2 border-orange-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🔗</span>
+                <h4 className="font-semibold">Verbundene Busse:</h4>
+              </div>
+              <div className="space-y-2">
+                {linkedGroups.map(linked => (
+                  <div key={linked.id} className="text-sm flex items-center gap-2">
+                    <Badge variant="outline">Teil {linked.part_number}/{linked.total_parts}</Badge>
+                    <span>Fahrt-Nr: {linked.trip_number}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <GroupForm
             groupId={groupId}
             trips={trips}

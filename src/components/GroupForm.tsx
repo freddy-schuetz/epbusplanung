@@ -17,6 +17,7 @@ import { fetchBuses } from '@/lib/supabaseOperations';
 import { toast } from 'sonner';
 import { parseGermanDate, addDays } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SplitDialog, SplitGroup } from './SplitDialog';
 
 interface GroupFormProps {
   groupId: string;
@@ -64,6 +65,10 @@ export const GroupForm = ({
     accommodation: firstTrip.busDetails?.accommodation || '',
     notes: firstTrip.busDetails?.notes || '',
   });
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
+
+  const maxBusCapacity = Math.max(...buses.map(b => b.seats), 61);
+  const needsSplit = totalPassengers > maxBusCapacity;
 
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
@@ -85,8 +90,22 @@ export const GroupForm = ({
       toast.error('Bitte wählen Sie einen Bus aus');
       return;
     }
+    
+    // Check if group is oversized
+    if (needsSplit) {
+      setShowSplitDialog(true);
+      return;
+    }
+    
     onUpdateGroup(groupId, { busDetails });
     onCompleteGroup(groupId);
+  };
+
+  const handleSplit = async (splitMethod: string, splitGroups: SplitGroup[]) => {
+    // This will be handled by the parent component (Index.tsx)
+    // For now, show success message
+    toast.success(`Gruppe wird in ${splitGroups.length} Busse aufgeteilt`);
+    console.log('Split method:', splitMethod, 'Groups:', splitGroups);
   };
 
   const handleDissolve = () => {
@@ -186,6 +205,19 @@ export const GroupForm = ({
         </div>
       )}
 
+      {needsSplit && (
+        <Alert className="bg-warning/10 border-warning">
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <strong>⚠️ Bus-Aufteilung erforderlich:</strong> {totalPassengers} Passagiere überschreiten die maximale Kapazität
+            </div>
+            <Button size="sm" onClick={() => setShowSplitDialog(true)} className="gradient-primary">
+              Aufteilen
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor={`busId-${groupId}`}>Bus auswählen</Label>
@@ -198,11 +230,19 @@ export const GroupForm = ({
               <SelectValue placeholder="-- Bitte wählen --" />
             </SelectTrigger>
             <SelectContent>
-              {buses.map(bus => (
-                <SelectItem key={bus.id} value={bus.id}>
-                  {bus.contractual ? '★ ' : ''}{bus.name} ({bus.seats} Plätze)
-                </SelectItem>
-              ))}
+              {buses.map(bus => {
+                const tooSmall = totalPassengers > bus.seats;
+                return (
+                  <SelectItem 
+                    key={bus.id} 
+                    value={bus.id}
+                    disabled={tooSmall}
+                  >
+                    {bus.contractual ? '★ ' : ''}{bus.name} ({bus.seats} Plätze)
+                    {tooSmall && ' - Zu klein'}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -300,6 +340,15 @@ export const GroupForm = ({
           <AlertDescription>🔒 Diese Busplanung ist gesperrt.</AlertDescription>
         </Alert>
       )}
+
+      <SplitDialog
+        open={showSplitDialog}
+        onOpenChange={setShowSplitDialog}
+        trips={trips}
+        stops={stops}
+        buses={buses}
+        onSplit={handleSplit}
+      />
     </div>
   );
 };

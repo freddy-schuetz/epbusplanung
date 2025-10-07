@@ -40,6 +40,9 @@ export interface BusGroup {
   notes: string | null;
   status: string;
   user_id: string;
+  split_group_id: string | null;
+  part_number: number;
+  total_parts: number;
 }
 
 export interface Stop {

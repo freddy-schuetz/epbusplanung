@@ -24,7 +24,10 @@ export type Database = {
           km_rueckweg: string | null
           luggage: string | null
           notes: string | null
+          part_number: number | null
+          split_group_id: string | null
           status: string
+          total_parts: number | null
           trip_number: string | null
           updated_at: string | null
           user_id: string
@@ -38,7 +41,10 @@ export type Database = {
           km_rueckweg?: string | null
           luggage?: string | null
           notes?: string | null
+          part_number?: number | null
+          split_group_id?: string | null
           status?: string
+          total_parts?: number | null
           trip_number?: string | null
           updated_at?: string | null
           user_id: string
@@ -52,7 +58,10 @@ export type Database = {
           km_rueckweg?: string | null
           luggage?: string | null
           notes?: string | null
+          part_number?: number | null
+          split_group_id?: string | null
           status?: string
+          total_parts?: number | null
           trip_number?: string | null
           updated_at?: string | null
           user_id?: string
