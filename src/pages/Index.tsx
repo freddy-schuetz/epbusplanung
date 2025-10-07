@@ -412,6 +412,73 @@ const Index = () => {
     }
   };
 
+  const handleSplitGroup = async (groupId: string, splitGroups: any[]) => {
+    if (!user) return;
+    
+    console.log('[Index] Splitting group into', splitGroups.length, 'parts');
+    
+    try {
+      // Get next trip number for the base
+      const { data: lastGroup } = await supabase
+        .from('bus_groups')
+        .select('trip_number')
+        .order('trip_number', { ascending: false })
+        .limit(1);
+      
+      let nextNumber = 1;
+      if (lastGroup && lastGroup[0]?.trip_number) {
+        nextNumber = parseInt(lastGroup[0].trip_number) + 1;
+      }
+      
+      const baseTripNumber = nextNumber.toString().padStart(3, '0');
+      const splitGroupId = crypto.randomUUID(); // Link all split groups
+      
+      // Create each split group
+      for (let i = 0; i < splitGroups.length; i++) {
+        const splitGroup = splitGroups[i];
+        const groupId = crypto.randomUUID();
+        const suffix = String.fromCharCode(97 + i); // 'a', 'b', 'c', etc.
+        const tripNumber = `${baseTripNumber}${suffix}`;
+        
+        console.log(`[Index] Creating split group ${i + 1}/${splitGroups.length} with trip number ${tripNumber}`);
+        
+        // Create bus_group
+        await createBusGroup({
+          id: groupId,
+          trip_number: tripNumber,
+          status: 'draft',
+          split_group_id: splitGroupId,
+          part_number: i + 1,
+          total_parts: splitGroups.length,
+          bus_id: splitGroup.suggestedBusId || null,
+        }, user.id);
+        
+        // Create trips for this group
+        const tripsToInsert = splitGroup.trips.map((trip: Trip) => ({
+          datum: trip.datum,
+          direction: trip.direction,
+          reise: trip.reise,
+          reisecode: trip.reisecode,
+          uhrzeit: trip.uhrzeit,
+          produktcode: trip.produktcode,
+          buchungen: trip.buchungen,
+          kontingent: trip.kontingent,
+          planningStatus: 'draft' as const,
+          groupId: groupId,
+        }));
+        
+        await createTrips(tripsToInsert, user.id);
+      }
+      
+      toast.success(`Gruppe in ${splitGroups.length} Busse aufgeteilt`);
+      await loadAllData();
+      
+    } catch (error) {
+      console.error('[Index] Error splitting group:', error);
+      toast.error('Fehler beim Aufteilen der Gruppe');
+    }
+  };
+
   const completeGroup = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     if (!groupTrips[0]?.busDetails?.busId) {
@@ -797,6 +864,7 @@ const Index = () => {
                   onLockGroup={lockGroup}
                   onUnlockGroup={unlockGroup}
                   onDissolveGroup={dissolveGroup}
+                  onSplitGroup={handleSplitGroup}
                 />
               );
             })

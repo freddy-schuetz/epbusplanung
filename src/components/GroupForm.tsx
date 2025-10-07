@@ -27,6 +27,7 @@ interface GroupFormProps {
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
+  onSplitGroup: (groupId: string, splitGroups: any[]) => void;
 }
 
 export const GroupForm = ({
@@ -37,6 +38,7 @@ export const GroupForm = ({
   onCompleteGroup,
   onSetGroupToDraft,
   onDissolveGroup,
+  onSplitGroup,
 }: GroupFormProps) => {
   const firstTrip = trips[0];
   const isLocked = firstTrip.planningStatus === 'locked';
@@ -102,10 +104,11 @@ export const GroupForm = ({
   };
 
   const handleSplit = async (splitMethod: string, splitGroups: SplitGroup[]) => {
-    // This will be handled by the parent component (Index.tsx)
-    // For now, show success message
-    toast.success(`Gruppe wird in ${splitGroups.length} Busse aufgeteilt`);
-    console.log('Split method:', splitMethod, 'Groups:', splitGroups);
+    console.log('[GroupForm] Split requested:', splitMethod, splitGroups);
+    setShowSplitDialog(false);
+    
+    // Call the parent's split handler which will create actual bus groups
+    onSplitGroup(groupId, splitGroups);
   };
 
   const handleDissolve = () => {

@@ -18,6 +18,7 @@ interface GroupCardProps {
   onLockGroup: (groupId: string) => void;
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
+  onSplitGroup: (groupId: string, splitGroups: any[]) => void;
 }
 
 export const GroupCard = ({
@@ -30,6 +31,7 @@ export const GroupCard = ({
   onLockGroup,
   onUnlockGroup,
   onDissolveGroup,
+  onSplitGroup,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -216,6 +218,7 @@ export const GroupCard = ({
             onCompleteGroup={onCompleteGroup}
             onSetGroupToDraft={onSetGroupToDraft}
             onDissolveGroup={onDissolveGroup}
+            onSplitGroup={onSplitGroup}
           />
         </div>
       )}

@@ -94,7 +94,21 @@ export const fetchBusGroups = async (userId: string) => {
 export const createBusGroup = async (groupData: any, userId: string) => {
   const { data, error } = await supabase
     .from('bus_groups')
-    .insert({ ...groupData, user_id: userId })
+    .insert({
+      id: groupData.id,
+      trip_number: groupData.trip_number,
+      status: groupData.status || 'draft',
+      user_id: userId,
+      bus_id: groupData.bus_id || null,
+      km_hinweg: groupData.km_hinweg || null,
+      km_rueckweg: groupData.km_rueckweg || null,
+      luggage: groupData.luggage || null,
+      accommodation: groupData.accommodation || null,
+      notes: groupData.notes || null,
+      split_group_id: groupData.split_group_id || null,
+      part_number: groupData.part_number || 1,
+      total_parts: groupData.total_parts || 1,
+    })
     .select();
   
   if (error) throw error;
