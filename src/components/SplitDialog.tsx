@@ -151,7 +151,7 @@ export const SplitDialog = ({
   );
 };
 
-// Split by stops - group passengers by stop location
+// Split by stops - group passengers by stop location, then balance
 const splitByStops = (trips: Trip[], stops: Stop[], buses: Bus[]): SplitGroup[] => {
   // Group stops by location and count passengers
   const stopGroups = new Map<string, { trips: Trip[]; passengers: number }>();
@@ -169,65 +169,47 @@ const splitByStops = (trips: Trip[], stops: Stop[], buses: Bus[]): SplitGroup[] 
     group.passengers += trip.buchungen;
   });
 
-  // Distribute into buses
-  const splitGroups: SplitGroup[] = [];
+  // Sort stop groups by passenger count (largest first)
   const sortedStopGroups = Array.from(stopGroups.values()).sort((a, b) => b.passengers - a.passengers);
   
+  // Create two groups and balance them
+  const group1: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[0]?.id };
+  const group2: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[1]?.id };
+  
+  // Distribute stop groups to balance passenger counts
   sortedStopGroups.forEach(stopGroup => {
-    // Try to add to existing bus
-    let added = false;
-    for (const group of splitGroups) {
-      const bus = buses.find(b => b.id === group.suggestedBusId);
-      if (bus && group.passengers + stopGroup.passengers <= bus.seats) {
-        group.trips.push(...stopGroup.trips);
-        group.passengers += stopGroup.passengers;
-        added = true;
-        break;
-      }
-    }
-    
-    // Create new bus if needed
-    if (!added) {
-      const availableBus = buses.find(b => b.seats >= stopGroup.passengers);
-      splitGroups.push({
-        trips: stopGroup.trips,
-        passengers: stopGroup.passengers,
-        suggestedBusId: availableBus?.id,
-      });
+    if (group1.passengers <= group2.passengers) {
+      group1.trips.push(...stopGroup.trips);
+      group1.passengers += stopGroup.passengers;
+    } else {
+      group2.trips.push(...stopGroup.trips);
+      group2.passengers += stopGroup.passengers;
     }
   });
 
-  return splitGroups;
+  return [group1, group2];
 };
 
-// Split by trips - distribute trips evenly
+// Split by trips - balance trips across two groups
 const splitByTrips = (trips: Trip[], buses: Bus[]): SplitGroup[] => {
+  // Sort trips by passenger count (largest first) for better balancing
   const sortedTrips = [...trips].sort((a, b) => b.buchungen - a.buchungen);
-  const splitGroups: SplitGroup[] = [];
   
+  // Create two groups with suggested buses
+  const group1: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[0]?.id };
+  const group2: SplitGroup = { trips: [], passengers: 0, suggestedBusId: buses[1]?.id };
+  
+  // Distribute trips to balance passenger counts (greedy balancing)
   sortedTrips.forEach(trip => {
-    // Try to add to existing bus with capacity
-    let added = false;
-    for (const group of splitGroups) {
-      const bus = buses.find(b => b.id === group.suggestedBusId);
-      if (bus && group.passengers + trip.buchungen <= bus.seats) {
-        group.trips.push(trip);
-        group.passengers += trip.buchungen;
-        added = true;
-        break;
-      }
-    }
-    
-    // Create new bus if needed
-    if (!added) {
-      const availableBus = buses.find(b => b.seats >= trip.buchungen);
-      splitGroups.push({
-        trips: [trip],
-        passengers: trip.buchungen,
-        suggestedBusId: availableBus?.id,
-      });
+    // Always add to the group with fewer passengers
+    if (group1.passengers <= group2.passengers) {
+      group1.trips.push(trip);
+      group1.passengers += trip.buchungen;
+    } else {
+      group2.trips.push(trip);
+      group2.passengers += trip.buchungen;
     }
   });
 
-  return splitGroups;
+  return [group1, group2];
 };
