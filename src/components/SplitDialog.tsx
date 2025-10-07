@@ -10,8 +10,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Trip, Stop, Bus } from '@/types/bus';
 import { Badge } from '@/components/ui/badge';
+import { AlertCircle } from 'lucide-react';
 
 interface SplitDialogProps {
   open: boolean;
@@ -52,9 +55,34 @@ export const SplitDialog = ({
   };
 
   const splitGroups = calculateSplit();
+  
+  // Bus selection state with suggested buses as defaults
+  const [bus1Id, setBus1Id] = useState<string>(splitGroups[0]?.suggestedBusId || '');
+  const [bus2Id, setBus2Id] = useState<string>(splitGroups[1]?.suggestedBusId || '');
+  
+  // Update selected buses when split method changes
+  useState(() => {
+    if (splitGroups[0]?.suggestedBusId) setBus1Id(splitGroups[0].suggestedBusId);
+    if (splitGroups[1]?.suggestedBusId) setBus2Id(splitGroups[1].suggestedBusId);
+  });
+  
+  // Validate capacity
+  const bus1 = buses.find(b => b.id === bus1Id);
+  const bus2 = buses.find(b => b.id === bus2Id);
+  const group1Pax = splitGroups[0]?.passengers || 0;
+  const group2Pax = splitGroups[1]?.passengers || 0;
+  
+  const bus1HasCapacity = bus1 && bus1.seats >= group1Pax;
+  const bus2HasCapacity = bus2 && bus2.seats >= group2Pax;
+  const canSplit = bus1Id && bus2Id && bus1HasCapacity && bus2HasCapacity;
 
   const handleSplit = () => {
-    onSplit(splitMethod, splitGroups);
+    // Update split groups with selected buses
+    const updatedGroups = [
+      { ...splitGroups[0], suggestedBusId: bus1Id },
+      { ...splitGroups[1], suggestedBusId: bus2Id },
+    ];
+    onSplit(splitMethod, updatedGroups);
     onOpenChange(false);
   };
 
@@ -70,28 +98,88 @@ export const SplitDialog = ({
 
         <div className="space-y-4">
           {splitGroups.length > 0 && (
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              <h4 className="font-semibold">Vorgeschlagene Aufteilung:</h4>
-              {splitGroups.map((group, index) => {
-                const bus = buses.find(b => b.id === group.suggestedBusId);
-                return (
-                  <div key={index} className="flex items-center justify-between bg-card p-3 rounded border">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🚌</span>
-                      <div>
-                        <div className="font-semibold">Bus {index + 1}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {bus ? `${bus.name} (${bus.seats} Plätze)` : 'Bus wählen'}
-                        </div>
+            <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+              <h4 className="font-semibold">Bus-Auswahl:</h4>
+              
+              {/* Bus 1 Selection */}
+              <div className="bg-card p-3 rounded border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🚌</span>
+                    <div>
+                      <div className="font-semibold">Bus 1</div>
+                      <div className="text-sm text-muted-foreground">
+                        {group1Pax} PAX · {splitGroups[0]?.trips.length} Reisen
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-lg">{group.passengers} PAX</div>
-                      <div className="text-sm text-muted-foreground">{group.trips.length} Reisen</div>
+                  </div>
+                </div>
+                
+                <Select value={bus1Id} onValueChange={setBus1Id}>
+                  <SelectTrigger className={!bus1HasCapacity && bus1Id ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="-- Bus wählen --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buses.map(bus => {
+                      const hasCapacity = bus.seats >= group1Pax;
+                      return (
+                        <SelectItem key={bus.id} value={bus.id}>
+                          {bus.name} ({bus.seats} Plätze) {!hasCapacity && '⚠️ Zu klein'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                
+                {bus1Id && !bus1HasCapacity && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Dieser Bus hat nur {bus1?.seats} Plätze, benötigt werden {group1Pax}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+              
+              {/* Bus 2 Selection */}
+              <div className="bg-card p-3 rounded border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🚌</span>
+                    <div>
+                      <div className="font-semibold">Bus 2</div>
+                      <div className="text-sm text-muted-foreground">
+                        {group2Pax} PAX · {splitGroups[1]?.trips.length} Reisen
+                      </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+                
+                <Select value={bus2Id} onValueChange={setBus2Id}>
+                  <SelectTrigger className={!bus2HasCapacity && bus2Id ? 'border-destructive' : ''}>
+                    <SelectValue placeholder="-- Bus wählen --" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buses.map(bus => {
+                      const hasCapacity = bus.seats >= group2Pax;
+                      return (
+                        <SelectItem key={bus.id} value={bus.id}>
+                          {bus.name} ({bus.seats} Plätze) {!hasCapacity && '⚠️ Zu klein'}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                
+                {bus2Id && !bus2HasCapacity && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Dieser Bus hat nur {bus2?.seats} Plätze, benötigt werden {group2Pax}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
             </div>
           )}
 
@@ -142,7 +230,7 @@ export const SplitDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
-          <Button onClick={handleSplit} className="gradient-primary">
+          <Button onClick={handleSplit} disabled={!canSplit} className="gradient-primary">
             Aufteilen
           </Button>
         </DialogFooter>
