@@ -39,6 +39,40 @@ export const GroupCard = ({
   const hasRueck = trips.some(t => t.direction === 'rueck');
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
 
+  // Calculate route display (First Stop → Last Stop)
+  const calculateRoute = () => {
+    const groupStops = stops.filter(stop => 
+      trips.some(trip => trip.reisecode === stop.Reisecode) &&
+      stop.Zeit && stop.Zeit.trim() !== ''
+    );
+
+    if (groupStops.length === 0) return null;
+
+    // Get base date from first trip
+    const [day, month, year] = trips[0].datum.split('.').map(Number);
+    const baseDate = new Date(year, month - 1, day);
+
+    // Helper to create full datetime
+    const getStopDateTime = (stop: Stop) => {
+      const [hours, minutes] = stop.Zeit!.split(':').map(Number);
+      const stopDate = new Date(baseDate);
+      if (hours < 6) stopDate.setDate(stopDate.getDate() + 1);
+      stopDate.setHours(hours, minutes, 0, 0);
+      return stopDate;
+    };
+
+    // Sort by datetime
+    const sortedStops = groupStops.sort((a, b) => {
+      return getStopDateTime(a).getTime() - getStopDateTime(b).getTime();
+    });
+
+    const firstStop = sortedStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+    const lastStop = sortedStops[sortedStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
+    return `${firstStop} → ${lastStop}`;
+  };
+
+  const routeDisplay = calculateRoute();
+
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
     
@@ -103,6 +137,11 @@ export const GroupCard = ({
           {busGroup?.trip_number && (
             <span className="bg-white/30 px-3 py-1 rounded font-bold">
               Fahrt-Nr: {busGroup.trip_number}
+            </span>
+          )}
+          {routeDisplay && (
+            <span className="bg-white/20 px-3 py-1 rounded font-semibold">
+              {routeDisplay}
             </span>
           )}
           <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>

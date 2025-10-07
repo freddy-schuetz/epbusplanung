@@ -28,11 +28,36 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   };
 
   // Calculate route display from stops (safely handle undefined/empty stops)
-  const tripStops = (stops || []).filter(
+  const filteredStops = (stops || []).filter(
     stop => stop.Reisecode === trip.reisecode && 
     stop.Beförderung?.toLowerCase().includes(trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt') &&
     stop.Zeit && stop.Zeit.trim() !== ''
-  ).sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
+  );
+
+  // Parse trip date for datetime calculation
+  const [day, month, year] = trip.datum.split('.').map(Number);
+  const baseDate = new Date(year, month - 1, day);
+
+  // Helper function to create full datetime for a stop
+  const getStopDateTime = (stop: Stop) => {
+    const [hours, minutes] = stop.Zeit!.split(':').map(Number);
+    const stopDate = new Date(baseDate);
+    
+    // If early morning (00:00-05:59), assume it's next day for overnight trips
+    if (hours < 6) {
+      stopDate.setDate(stopDate.getDate() + 1);
+    }
+    
+    stopDate.setHours(hours, minutes, 0, 0);
+    return stopDate;
+  };
+
+  // Sort by full datetime (not just time string)
+  const tripStops = filteredStops.sort((a, b) => {
+    const dateA = getStopDateTime(a);
+    const dateB = getStopDateTime(b);
+    return dateA.getTime() - dateB.getTime();
+  });
 
   const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Start';
   const lastStop = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
