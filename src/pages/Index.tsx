@@ -342,6 +342,22 @@ const Index = () => {
       return;
     }
     
+    // Check for Standbus and show info
+    const hinTrips = selectedTripsList.filter(t => t.direction === 'hin');
+    const rueckTrips = selectedTripsList.filter(t => t.direction === 'rueck');
+    
+    if (hinTrips.length > 0 && rueckTrips.length > 0) {
+      const hinDate = parseGermanDate(hinTrips[0].datum);
+      const rueckDate = parseGermanDate(rueckTrips[0].datum);
+      const daysDiff = Math.floor((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff > 2) {
+        toast.info(`ℹ️ Hinweis: Standbus-Planung (Bus bleibt ${daysDiff} Tage vor Ort vom ${hinTrips[0].datum} bis ${rueckTrips[0].datum})`, {
+          duration: 5000,
+        });
+      }
+    }
+    
     // Generate proper UUID for group_id
     const groupId = crypto.randomUUID();
     

@@ -159,6 +159,22 @@ export const GroupForm = ({
 
   return (
     <div className="space-y-5">
+      {isStandbus && (
+        <Alert className="bg-orange-50 border-orange-300 border-2">
+          <AlertDescription>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <strong className="text-orange-700">Standbus-Planung:</strong>
+                <p className="text-orange-600 mt-1">
+                  Der Bus bleibt vom {hinTrips[0]?.datum} bis {rueckTrips[0]?.datum} vor Ort ({standbusDays} Tage)
+                </p>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="bg-card rounded-lg p-4 border">
         <div className="flex items-center gap-3 mb-3">
           <h4 className="font-semibold">Enthaltene Reisen:</h4>

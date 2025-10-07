@@ -7,6 +7,7 @@ import { GroupForm } from './GroupForm';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GroupCardProps {
   groupId: string;
@@ -44,6 +45,24 @@ export const GroupCard = ({
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
   
   const isSplitGroup = busGroup && busGroup.total_parts > 1;
+
+  // Check for Standbus (bus stays on-site for >2 days)
+  const hinTrips = trips.filter(t => t.direction === 'hin');
+  const rueckTrips = trips.filter(t => t.direction === 'rueck');
+  
+  let isStandbus = false;
+  let standbusDays = 0;
+  let hinDate: Date | null = null;
+  let rueckDate: Date | null = null;
+  
+  if (hinTrips.length > 0 && rueckTrips.length > 0) {
+    const [hinDay, hinMonth, hinYear] = hinTrips[0].datum.split('.').map(Number);
+    const [rueckDay, rueckMonth, rueckYear] = rueckTrips[0].datum.split('.').map(Number);
+    hinDate = new Date(hinYear, hinMonth - 1, hinDay);
+    rueckDate = new Date(rueckYear, rueckMonth - 1, rueckDay);
+    standbusDays = Math.floor((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+    isStandbus = standbusDays > 2;
+  }
 
   // Extract destination from trip name (e.g., "Davos - Sportclub Weissfluh" → "Davos")
   const extractDestination = (tripName: string) => {
@@ -153,9 +172,13 @@ export const GroupCard = ({
   };
 
   return (
-    <div className="bg-card border-2 border-primary/30 rounded-lg overflow-hidden mb-3 shadow-sm">
+    <div className={`border-2 rounded-lg overflow-hidden mb-3 shadow-sm ${
+      isStandbus ? 'bg-orange-50 border-orange-300' : 'bg-card border-primary/30'
+    }`}>
       <div
-        className="gradient-primary text-white p-4 flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity"
+        className={`text-white p-4 flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity ${
+          isStandbus ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'gradient-primary'
+        }`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
@@ -169,6 +192,20 @@ export const GroupCard = ({
             <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
               Teil {busGroup.part_number}/{busGroup.total_parts}
             </Badge>
+          )}
+          {isStandbus && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold">
+                    🅿️ STANDBUS
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bus bleibt {standbusDays} Tage vor Ort</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {routeDisplay && (
             <span className="bg-white/20 px-3 py-1 rounded font-semibold">
