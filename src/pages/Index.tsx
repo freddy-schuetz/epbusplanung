@@ -814,6 +814,7 @@ const Index = () => {
         {activeDragTrip ? (
           <TripCard
             trip={activeDragTrip}
+            stops={stops}
             isSelected={selectedTrips.has(activeDragTrip.id)}
             onToggleSelection={() => {}}
           />

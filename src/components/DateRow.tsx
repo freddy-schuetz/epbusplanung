@@ -107,6 +107,7 @@ export const DateRow = ({
                     <TripCard
                       key={trip.id}
                       trip={trip}
+                      stops={stops}
                       isSelected={selectedTrips.has(trip.id)}
                       onToggleSelection={onToggleSelection}
                     />
@@ -129,6 +130,7 @@ export const DateRow = ({
                     <TripCard
                       key={trip.id}
                       trip={trip}
+                      stops={stops}
                       isSelected={selectedTrips.has(trip.id)}
                       onToggleSelection={onToggleSelection}
                     />

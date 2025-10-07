@@ -11,10 +11,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Trip, BusDetails, Bus, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { toast } from 'sonner';
 import { parseGermanDate, addDays } from '@/lib/dateUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GroupFormProps {
   groupId: string;
@@ -38,6 +40,20 @@ export const GroupForm = ({
   const firstTrip = trips[0];
   const isLocked = firstTrip.planningStatus === 'locked';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
+
+  // Check for Standbus (bus stays on-site)
+  const hinTrips = trips.filter(t => t.direction === 'hin');
+  const rueckTrips = trips.filter(t => t.direction === 'rueck');
+  
+  let isStandbus = false;
+  let standbusDays = 0;
+  
+  if (hinTrips.length > 0 && rueckTrips.length > 0) {
+    const hinDate = parseGermanDate(hinTrips[0].datum);
+    const rueckDate = parseGermanDate(rueckTrips[0].datum);
+    standbusDays = Math.floor((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+    isStandbus = standbusDays > 2;
+  }
 
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busDetails, setBusDetails] = useState<BusDetails>({
@@ -122,12 +138,33 @@ export const GroupForm = ({
   return (
     <div className="space-y-5">
       <div className="bg-card rounded-lg p-4 border">
-        <h4 className="font-semibold mb-3">Enthaltene Reisen:</h4>
+        <div className="flex items-center gap-3 mb-3">
+          <h4 className="font-semibold">Enthaltene Reisen:</h4>
+          {isStandbus && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="default" className="bg-orange-500 hover:bg-orange-600 text-white">
+                    🚌 STANDBUS
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bus bleibt vor Ort ({standbusDays} Tage)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         {trips.map(trip => (
           <div key={trip.id} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm">
             <span>{trip.direction === 'hin' ? '🟢' : '🔴'}</span>
             <span>{trip.datum} {trip.uhrzeit || '--:--'}</span>
             <span className="font-semibold">{trip.reisecode}</span>
+            {trip.produktcode && (
+              <Badge variant="secondary" className="text-xs">
+                {trip.produktcode}
+              </Badge>
+            )}
             <span className="flex-1">{trip.reise}</span>
             <span className="font-semibold">{trip.buchungen} PAX</span>
           </div>
