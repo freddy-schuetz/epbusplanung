@@ -147,65 +147,69 @@ export const SplitDialog = ({
   };
 
   const handleSplit = () => {
-    // Group trips by bus assignment based on MAJORITY of their stops
-    const tripAssignments = new Map<string, { bus1: number; bus2: number }>();
+    // Calculate passenger counts per trip per bus based on stop assignments
+    const tripBusData = new Map<string, { bus1Pax: number; bus2Pax: number }>();
     
-    // Count stop assignments per trip
     enhancedStops.forEach(stop => {
       const stopKey = `${stop.Reisecode}-${stop.time}-${stop.stopName}`;
       const assignment = stopAssignments[stopKey];
       
-      if (!tripAssignments.has(stop.Reisecode)) {
-        tripAssignments.set(stop.Reisecode, { bus1: 0, bus2: 0 });
+      if (!tripBusData.has(stop.Reisecode)) {
+        tripBusData.set(stop.Reisecode, { bus1Pax: 0, bus2Pax: 0 });
       }
       
-      const counts = tripAssignments.get(stop.Reisecode)!;
+      const data = tripBusData.get(stop.Reisecode)!;
       if (assignment === 'bus1') {
-        counts.bus1++;
+        data.bus1Pax += stop.passengers;
       } else if (assignment === 'bus2') {
-        counts.bus2++;
+        data.bus2Pax += stop.passengers;
       }
     });
     
-    // Assign each trip to the bus with more stops
-    const bus1Trips = new Set<string>();
-    const bus2Trips = new Set<string>();
+    // Create modified trips for each bus with adjusted passenger counts
+    const bus1ModifiedTrips: Trip[] = [];
+    const bus2ModifiedTrips: Trip[] = [];
+    let totalBus1Pax = 0;
+    let totalBus2Pax = 0;
     
-    tripAssignments.forEach((counts, reisecode) => {
-      if (counts.bus1 > counts.bus2) {
-        bus1Trips.add(reisecode);
-      } else if (counts.bus2 > counts.bus1) {
-        bus2Trips.add(reisecode);
-      } else if (counts.bus1 > 0) {
-        // Equal stops - assign to bus1 by default
-        bus1Trips.add(reisecode);
+    trips.forEach(trip => {
+      const data = tripBusData.get(trip.reisecode);
+      if (!data) return;
+      
+      // Create trip for bus 1 if it has passengers from this trip's stops
+      if (data.bus1Pax > 0) {
+        bus1ModifiedTrips.push({
+          ...trip,
+          buchungen: data.bus1Pax
+        });
+        totalBus1Pax += data.bus1Pax;
+      }
+      
+      // Create trip for bus 2 if it has passengers from this trip's stops
+      if (data.bus2Pax > 0) {
+        bus2ModifiedTrips.push({
+          ...trip,
+          buchungen: data.bus2Pax
+        });
+        totalBus2Pax += data.bus2Pax;
       }
     });
     
-    console.log('[SplitDialog] Trip assignments:', {
-      bus1Trips: Array.from(bus1Trips),
-      bus2Trips: Array.from(bus2Trips),
-      totalTrips: trips.length
-    });
-    
-    // Create split groups
-    const group1Trips = trips.filter(t => bus1Trips.has(t.reisecode));
-    const group2Trips = trips.filter(t => bus2Trips.has(t.reisecode));
-    
-    console.log('[SplitDialog] Split result:', {
-      group1: { trips: group1Trips.length, pax: bus1Pax },
-      group2: { trips: group2Trips.length, pax: bus2Pax }
+    console.log('[SplitDialog] Split by stops result:', {
+      bus1: { trips: bus1ModifiedTrips.length, pax: totalBus1Pax },
+      bus2: { trips: bus2ModifiedTrips.length, pax: totalBus2Pax },
+      tripBusData: Array.from(tripBusData.entries())
     });
     
     const group1: SplitGroup = {
-      trips: group1Trips,
-      passengers: bus1Pax,
+      trips: bus1ModifiedTrips,
+      passengers: totalBus1Pax,
       suggestedBusId: bus1Id,
     };
     
     const group2: SplitGroup = {
-      trips: group2Trips,
-      passengers: bus2Pax,
+      trips: bus2ModifiedTrips,
+      passengers: totalBus2Pax,
       suggestedBusId: bus2Id,
     };
     
