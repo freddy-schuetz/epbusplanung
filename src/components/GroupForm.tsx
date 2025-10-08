@@ -131,18 +131,24 @@ export const GroupForm = ({
     // Notes is not JSON or doesn't contain stop keys - use all stops
   }
 
-  // Aggregate stops for this group - include ALL stops for the trips
+  // Aggregate stops for this group - match by reisecode AND direction
   let groupStops = stops.filter(stop => 
-    trips.some(trip => trip.reisecode === stop.Reisecode)
+    trips.some(trip => {
+      const reisecodeMatch = trip.reisecode === stop.Reisecode;
+      const directionMatch = stop.Beförderung && (
+        (trip.direction === 'hin' && stop.Beförderung.toLowerCase().includes('hinfahrt')) ||
+        (trip.direction === 'rueck' && stop.Beförderung.toLowerCase().includes('rückfahrt'))
+      );
+      return reisecodeMatch && directionMatch;
+    })
   );
   
-  // Debug: Log stops with/without times
-  const stopsWithTime = groupStops.filter(s => s.Zeit && s.Zeit.trim() !== '');
-  const stopsWithoutTime = groupStops.filter(s => !s.Zeit || s.Zeit.trim() === '');
-  console.log('[GroupForm] Total stops:', groupStops.length);
-  console.log('[GroupForm] Stops with time:', stopsWithTime.length);
-  console.log('[GroupForm] Stops without time:', stopsWithoutTime.length, stopsWithoutTime);
-  console.log('[GroupForm] Total PAX from stops:', groupStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
+  // Debug: Log stops by direction
+  const hinStops = groupStops.filter(s => s.Beförderung?.toLowerCase().includes('hinfahrt'));
+  const rueckStops = groupStops.filter(s => s.Beförderung?.toLowerCase().includes('rückfahrt'));
+  console.log('[GroupForm] Hin stops:', hinStops.length, 'PAX:', hinStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
+  console.log('[GroupForm] Rück stops:', rueckStops.length, 'PAX:', rueckStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
+  console.log('[GroupForm] Total stops:', groupStops.length, 'Total PAX:', groupStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
 
   // If this is a split group with assigned stops, filter to only show those stops
   if (assignedStopKeys && assignedStopKeys.length > 0) {
