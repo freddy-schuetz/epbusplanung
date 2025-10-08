@@ -70,40 +70,37 @@ export const GroupCard = ({
     return parts[0]?.trim() || 'Ziel';
   };
 
-  // Calculate route display (First Stop → Destination)
-  const calculateRoute = () => {
-    const groupStops = stops.filter(stop => 
-      trips.some(trip => trip.reisecode === stop.Reisecode) &&
+  // Calculate route displays for both directions
+  const calculateRoutes = () => {
+    if (!hasHin && !hasRueck) return null;
+
+    const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
+    const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
+
+    // Get destination from first trip
+    const destination = extractDestination(trips[0].reise);
+
+    // Find first stop from Hinfahrt
+    const hinStops = stops.filter(stop => 
+      hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
       stop.Zeit && stop.Zeit.trim() !== ''
     );
+    const firstStop = hinStops.length > 0 ? hinStops[0]['Zustieg/Ausstieg'] : 'Start';
 
-    if (groupStops.length === 0) return null;
-
-    // Get base date from first trip
-    const [day, month, year] = trips[0].datum.split('.').map(Number);
-    const baseDate = new Date(year, month - 1, day);
-
-    // Helper to create full datetime
-    const getStopDateTime = (stop: Stop) => {
-      const [hours, minutes] = stop.Zeit!.split(':').map(Number);
-      const stopDate = new Date(baseDate);
-      if (hours < 6) stopDate.setDate(stopDate.getDate() + 1);
-      stopDate.setHours(hours, minutes, 0, 0);
-      return stopDate;
-    };
-
-    // Sort by datetime
-    const sortedStops = groupStops.sort((a, b) => {
-      return getStopDateTime(a).getTime() - getStopDateTime(b).getTime();
-    });
-
-    const firstStop = sortedStops[0]?.['Zustieg/Ausstieg'] || 'Start';
-    // Use actual destination from trip name, not last pickup
-    const destination = extractDestination(trips[0].reise);
-    return `${firstStop} → ${destination}`;
+    if (hasHin && hasRueck) {
+      // Both directions
+      return {
+        hin: `↗ ${firstStop} → ${destination} (${hinPax} PAX)`,
+        rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
+      };
+    } else if (hasHin) {
+      return { hin: `${firstStop} → ${destination}` };
+    } else {
+      return { rueck: `${destination} → ${firstStop}` };
+    }
   };
 
-  const routeDisplay = calculateRoute();
+  const routeDisplays = calculateRoutes();
 
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
@@ -207,10 +204,19 @@ export const GroupCard = ({
               </Tooltip>
             </TooltipProvider>
           )}
-          {routeDisplay && (
-            <span className="bg-white/20 px-3 py-1 rounded font-semibold">
-              {routeDisplay}
-            </span>
+          {routeDisplays && (
+            <div className="flex flex-col gap-1">
+              {routeDisplays.hin && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.hin}
+                </span>
+              )}
+              {routeDisplays.rueck && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.rueck}
+                </span>
+              )}
+            </div>
           )}
           <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
           <span className="opacity-90">
