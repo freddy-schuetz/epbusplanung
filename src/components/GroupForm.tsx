@@ -160,7 +160,7 @@ export const GroupForm = ({
   // Group stops by location and time, sum passengers, calculate dates
   const aggregatedStops = groupStops.reduce((acc, stop) => {
     const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
-    const stopTime = stop.Zeit!; // We know it exists from filter above
+    const stopTime = stop.Zeit || '00:00'; // Use placeholder for stops without time (e.g., Rückfahrt)
     
     // Calculate actual date for this stop (handle overnight trips)
     let stopDate = baseTripDate;
@@ -174,7 +174,7 @@ export const GroupForm = ({
     if (!acc[key]) {
       acc[key] = {
         date: stopDate,
-        time: stopTime,
+        time: stop.Zeit || 'Zeit folgt', // Show "Zeit folgt" for stops without time
         datetime: parseGermanDate(stopDate).getTime() + parseInt(stopTime.split(':')[0]) * 3600000 + parseInt(stopTime.split(':')[1]) * 60000,
         location: location,
         passengers: stop.Anzahl || 0,
