@@ -147,30 +147,64 @@ export const SplitDialog = ({
   };
 
   const handleSplit = () => {
-    // Group trips by bus assignment based on stop assignments
-    const bus1Trips = new Set<string>();
-    const bus2Trips = new Set<string>();
+    // Group trips by bus assignment based on MAJORITY of their stops
+    const tripAssignments = new Map<string, { bus1: number; bus2: number }>();
     
+    // Count stop assignments per trip
     enhancedStops.forEach(stop => {
       const stopKey = `${stop.Reisecode}-${stop.time}-${stop.stopName}`;
       const assignment = stopAssignments[stopKey];
       
+      if (!tripAssignments.has(stop.Reisecode)) {
+        tripAssignments.set(stop.Reisecode, { bus1: 0, bus2: 0 });
+      }
+      
+      const counts = tripAssignments.get(stop.Reisecode)!;
       if (assignment === 'bus1') {
-        bus1Trips.add(stop.Reisecode);
+        counts.bus1++;
       } else if (assignment === 'bus2') {
-        bus2Trips.add(stop.Reisecode);
+        counts.bus2++;
       }
     });
     
+    // Assign each trip to the bus with more stops
+    const bus1Trips = new Set<string>();
+    const bus2Trips = new Set<string>();
+    
+    tripAssignments.forEach((counts, reisecode) => {
+      if (counts.bus1 > counts.bus2) {
+        bus1Trips.add(reisecode);
+      } else if (counts.bus2 > counts.bus1) {
+        bus2Trips.add(reisecode);
+      } else if (counts.bus1 > 0) {
+        // Equal stops - assign to bus1 by default
+        bus1Trips.add(reisecode);
+      }
+    });
+    
+    console.log('[SplitDialog] Trip assignments:', {
+      bus1Trips: Array.from(bus1Trips),
+      bus2Trips: Array.from(bus2Trips),
+      totalTrips: trips.length
+    });
+    
     // Create split groups
+    const group1Trips = trips.filter(t => bus1Trips.has(t.reisecode));
+    const group2Trips = trips.filter(t => bus2Trips.has(t.reisecode));
+    
+    console.log('[SplitDialog] Split result:', {
+      group1: { trips: group1Trips.length, pax: bus1Pax },
+      group2: { trips: group2Trips.length, pax: bus2Pax }
+    });
+    
     const group1: SplitGroup = {
-      trips: trips.filter(t => bus1Trips.has(t.reisecode)),
+      trips: group1Trips,
       passengers: bus1Pax,
       suggestedBusId: bus1Id,
     };
     
     const group2: SplitGroup = {
-      trips: trips.filter(t => bus2Trips.has(t.reisecode)),
+      trips: group2Trips,
       passengers: bus2Pax,
       suggestedBusId: bus2Id,
     };
