@@ -30,6 +30,7 @@ export interface SplitGroup {
   trips: Trip[];
   suggestedBusId?: string;
   passengers: number;
+  assignedStopKeys?: string[]; // Keys of stops assigned to this group
 }
 
 export const SplitDialog = ({
@@ -150,6 +151,10 @@ export const SplitDialog = ({
     // Calculate passenger counts per trip per bus based on stop assignments
     const tripBusData = new Map<string, { bus1Pax: number; bus2Pax: number }>();
     
+    // Track which stop keys are assigned to each bus
+    const bus1StopKeys: string[] = [];
+    const bus2StopKeys: string[] = [];
+    
     enhancedStops.forEach(stop => {
       const stopKey = `${stop.Reisecode}-${stop.time}-${stop.stopName}`;
       const assignment = stopAssignments[stopKey];
@@ -161,8 +166,10 @@ export const SplitDialog = ({
       const data = tripBusData.get(stop.Reisecode)!;
       if (assignment === 'bus1') {
         data.bus1Pax += stop.passengers;
+        bus1StopKeys.push(stopKey);
       } else if (assignment === 'bus2') {
         data.bus2Pax += stop.passengers;
+        bus2StopKeys.push(stopKey);
       }
     });
     
@@ -196,8 +203,8 @@ export const SplitDialog = ({
     });
     
     console.log('[SplitDialog] Split by stops result:', {
-      bus1: { trips: bus1ModifiedTrips.length, pax: totalBus1Pax },
-      bus2: { trips: bus2ModifiedTrips.length, pax: totalBus2Pax },
+      bus1: { trips: bus1ModifiedTrips.length, pax: totalBus1Pax, stops: bus1StopKeys.length },
+      bus2: { trips: bus2ModifiedTrips.length, pax: totalBus2Pax, stops: bus2StopKeys.length },
       tripBusData: Array.from(tripBusData.entries())
     });
     
@@ -205,12 +212,14 @@ export const SplitDialog = ({
       trips: bus1ModifiedTrips,
       passengers: totalBus1Pax,
       suggestedBusId: bus1Id,
+      assignedStopKeys: bus1StopKeys,
     };
     
     const group2: SplitGroup = {
       trips: bus2ModifiedTrips,
       passengers: totalBus2Pax,
       suggestedBusId: bus2Id,
+      assignedStopKeys: bus2StopKeys,
     };
     
     onSplit('manual', [group1, group2]);

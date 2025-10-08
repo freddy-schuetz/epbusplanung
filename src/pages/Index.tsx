@@ -485,7 +485,7 @@ const Index = () => {
         
         console.log(`[Index] Creating split group ${i + 1}/${splitGroups.length} with trip number ${tripNumber}, ${splitGroup.passengers} PAX`);
         
-        // Create bus_group
+        // Create bus_group with stop assignments stored in notes
         await createBusGroup({
           id: newGroupId,
           trip_number: tripNumber,
@@ -494,6 +494,9 @@ const Index = () => {
           part_number: i + 1,
           total_parts: splitGroups.length,
           bus_id: splitGroup.suggestedBusId || null,
+          notes: splitGroup.assignedStopKeys 
+            ? JSON.stringify({ assignedStopKeys: splitGroup.assignedStopKeys })
+            : null,
         }, user.id);
         
         // Create trips for this group

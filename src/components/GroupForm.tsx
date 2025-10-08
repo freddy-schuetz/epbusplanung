@@ -117,11 +117,35 @@ export const GroupForm = ({
     }
   };
 
+  // Parse stop assignments from notes if this is a split group
+  let assignedStopKeys: string[] | null = null;
+  try {
+    if (firstTrip.busDetails?.notes) {
+      const notesData = JSON.parse(firstTrip.busDetails.notes);
+      if (notesData.assignedStopKeys) {
+        assignedStopKeys = notesData.assignedStopKeys;
+        console.log('[GroupForm] Found assigned stop keys:', assignedStopKeys.length);
+      }
+    }
+  } catch (e) {
+    // Notes is not JSON or doesn't contain stop keys - use all stops
+  }
+
   // Aggregate stops for this group - only include stops with valid time data
-  const groupStops = stops.filter(stop => 
+  let groupStops = stops.filter(stop => 
     trips.some(trip => trip.reisecode === stop.Reisecode) &&
     stop.Zeit && stop.Zeit.trim() !== '' // Only include stops with time
   );
+
+  // If this is a split group with assigned stops, filter to only show those stops
+  if (assignedStopKeys && assignedStopKeys.length > 0) {
+    const assignedStopKeysSet = new Set(assignedStopKeys);
+    groupStops = groupStops.filter(stop => {
+      const stopKey = `${stop.Reisecode}-${stop.Zeit}-${stop['Zustieg/Ausstieg'] || 'Unbekannt'}`;
+      return assignedStopKeysSet.has(stopKey);
+    });
+    console.log('[GroupForm] Filtered to assigned stops:', groupStops.length);
+  }
 
   // Get base trip date from first trip
   const baseTripDate = trips[0].datum; // "DD.MM.YYYY" format
