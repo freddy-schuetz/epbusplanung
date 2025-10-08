@@ -25,7 +25,6 @@ export const fetchTrips = async (userId: string) => {
   const { data, error } = await supabase
     .from('trips')
     .select('*')
-    .eq('user_id', userId)
     .neq('status', 'unplanned')
     .order('datum', { ascending: true });
   
@@ -84,8 +83,7 @@ export const deleteTrip = async (id: string) => {
 export const fetchBusGroups = async (userId: string) => {
   const { data, error } = await supabase
     .from('bus_groups')
-    .select('*')
-    .eq('user_id', userId);
+    .select('*');
   
   if (error) throw error;
   return data;

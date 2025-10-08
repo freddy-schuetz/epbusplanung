@@ -59,7 +59,7 @@ const Index = () => {
       .channel('trips-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'trips', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'trips' },
         () => {
           console.log('[Index] Realtime update detected, reloading data');
           loadAllData();
