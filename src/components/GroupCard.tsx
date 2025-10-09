@@ -90,11 +90,16 @@ export const GroupCard = ({
         .filter(stop => hinTrips.some(trip => trip.reisecode === stop.Reisecode && stop['Beförderung'] === 'Hinfahrt'))
         .sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
 
-      const departureTime = hinStops[0]?.Zeit || 'TBA';
+      const firstStop = hinStops[0];
+      const departureTime = firstStop && firstStop.Zeit && firstStop.Zeit.trim() !== '' 
+        ? firstStop.Zeit 
+        : '';
       const routeStops = hinStops.map(s => s['Zustieg/Ausstieg']).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
       const destCode = hinDestCodes.join('/');
       
-      routes.hin = `↗ ${departureTime} ${routeStops} → ${destCode} (${hinPax} PAX)`;
+      routes.hin = departureTime 
+        ? `↗ ${departureTime} ${routeStops} → ${destCode} (${hinPax} PAX)`
+        : `↗ ${routeStops} → ${destCode} (${hinPax} PAX)`;
     }
 
     if (hasRueck) {
@@ -103,12 +108,12 @@ export const GroupCard = ({
         .filter(stop => rueckTrips.some(trip => trip.reisecode === stop.Reisecode && stop['Beförderung'] === 'Rückfahrt'))
         .sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
 
-      const departureTime = rueckStops[0]?.Zeit || 'TBA';
+      const firstStop = rueckStops[0];
+      const departureTime = firstStop && firstStop.Zeit && firstStop.Zeit.trim() !== '' 
+        ? firstStop.Zeit 
+        : 'TBA';
       const routeStops = rueckStops.map(s => s['Zustieg/Ausstieg']).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
       const destCode = rueckDestCodes.join('/');
-      const firstStop = hinTrips.length > 0 
-        ? stops.filter(s => hinTrips.some(t => t.reisecode === s.Reisecode))[0]?.['Zustieg/Ausstieg'] || 'Start'
-        : 'Start';
       
       routes.rueck = `↘ ${departureTime} ${destCode} → ${routeStops} (${rueckPax} PAX)`;
     }
