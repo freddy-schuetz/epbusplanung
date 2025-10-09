@@ -77,27 +77,43 @@ export const GroupCard = ({
     const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
     const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
 
-    // Get destination from first trip
-    const destination = extractDestination(trips[0].reise);
+    // Get destination codes from reisecodes (first 3 letters)
+    const hinDestCodes = hinTrips.map(t => t.reisecode.substring(0, 3)).filter((v, i, a) => a.indexOf(v) === i);
+    const rueckDestCodes = rueckTrips.map(t => t.reisecode.substring(0, 3)).filter((v, i, a) => a.indexOf(v) === i);
 
-    // Find first stop from Hinfahrt
-    const hinStops = stops.filter(stop => 
-      hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-      stop.Zeit && stop.Zeit.trim() !== ''
-    );
-    const firstStop = hinStops.length > 0 ? hinStops[0]['Zustieg/Ausstieg'] : 'Start';
+    // Build routes for each direction
+    let routes: { hin?: string; rueck?: string } = {};
 
-    if (hasHin && hasRueck) {
-      // Both directions
-      return {
-        hin: `↗ ${firstStop} → ${destination} (${hinPax} PAX)`,
-        rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
-      };
-    } else if (hasHin) {
-      return { hin: `${firstStop} → ${destination}` };
-    } else {
-      return { rueck: `${destination} → ${firstStop}` };
+    if (hasHin) {
+      // Get all Hinfahrt stops sorted by time
+      const hinStops = stops
+        .filter(stop => hinTrips.some(trip => trip.reisecode === stop.Reisecode && stop['Beförderung'] === 'Hinfahrt'))
+        .sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
+
+      const departureTime = hinStops[0]?.Zeit || 'TBA';
+      const routeStops = hinStops.map(s => s['Zustieg/Ausstieg']).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
+      const destCode = hinDestCodes.join('/');
+      
+      routes.hin = `↗ ${departureTime} ${routeStops} → ${destCode} (${hinPax} PAX)`;
     }
+
+    if (hasRueck) {
+      // Get all Rückfahrt stops sorted by time
+      const rueckStops = stops
+        .filter(stop => rueckTrips.some(trip => trip.reisecode === stop.Reisecode && stop['Beförderung'] === 'Rückfahrt'))
+        .sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
+
+      const departureTime = rueckStops[0]?.Zeit || 'TBA';
+      const routeStops = rueckStops.map(s => s['Zustieg/Ausstieg']).filter((v, i, a) => a.indexOf(v) === i).join(' - ');
+      const destCode = rueckDestCodes.join('/');
+      const firstStop = hinTrips.length > 0 
+        ? stops.filter(s => hinTrips.some(t => t.reisecode === s.Reisecode))[0]?.['Zustieg/Ausstieg'] || 'Start'
+        : 'Start';
+      
+      routes.rueck = `↘ ${departureTime} ${destCode} → ${routeStops} (${rueckPax} PAX)`;
+    }
+
+    return routes;
   };
 
   const routeDisplays = calculateRoutes();
