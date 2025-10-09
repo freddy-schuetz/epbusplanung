@@ -80,21 +80,41 @@ export const GroupCard = ({
     // Get destination from first trip
     const destination = extractDestination(trips[0].reise);
 
-    // Find first stop from Hinfahrt
-    const hinStops = stops.filter(stop => 
-      hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-      stop.Zeit && stop.Zeit.trim() !== ''
-    );
-    const firstStop = hinStops.length > 0 ? hinStops[0]['Zustieg/Ausstieg'] : 'Start';
+    // Get all stops for Hinfahrt, sorted by time if available
+    const hinStops = stops
+      .filter(stop => 
+        hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
+        stop['Zustieg/Ausstieg'] && stop['Zustieg/Ausstieg'].trim() !== ''
+      )
+      .sort((a, b) => {
+        // Sort by time if available
+        if (a.Zeit && b.Zeit) {
+          return a.Zeit.localeCompare(b.Zeit);
+        }
+        return 0;
+      });
+
+    // Build full route with all stops (limit to first 4 for space)
+    const allStops = hinStops
+      .map(s => s['Zustieg/Ausstieg'])
+      .filter(Boolean)
+      .slice(0, 4);
+
+    const firstStop = allStops.length > 0 ? allStops[0] : 'Start';
+    
+    // Create route display with all stops
+    const routeDisplay = allStops.length > 1
+      ? `${allStops.join(' - ')} → ${destination}`
+      : `${firstStop} → ${destination}`;
 
     if (hasHin && hasRueck) {
       // Both directions
       return {
-        hin: `↗ ${firstStop} → ${destination} (${hinPax} PAX)`,
+        hin: `↗ ${routeDisplay} (${hinPax} PAX)`,
         rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
       };
     } else if (hasHin) {
-      return { hin: `${firstStop} → ${destination}` };
+      return { hin: routeDisplay };
     } else {
       return { rueck: `${destination} → ${firstStop}` };
     }
