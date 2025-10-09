@@ -80,58 +80,21 @@ export const GroupCard = ({
     // Get destination from first trip
     const destination = extractDestination(trips[0].reise);
 
-    // Helper to parse German date + time into Date object
-    const parseDateTime = (datum: string, zeit: string) => {
-      const [day, month, year] = datum.split('.').map(Number);
-      const [hours, minutes] = zeit.split(':').map(Number);
-      return new Date(year, month - 1, day, hours, minutes);
-    };
-
-    // Get all stops for Hinfahrt with their corresponding trip dates
-    const hinStopsWithDates = stops
-      .filter(stop => 
-        hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-        stop['Zustieg/Ausstieg'] && stop['Zustieg/Ausstieg'].trim() !== '' &&
-        stop.Zeit
-      )
-      .map(stop => {
-        // Find the trip for this stop to get the date
-        const trip = hinTrips.find(t => t.reisecode === stop.Reisecode);
-        return {
-          name: stop['Zustieg/Ausstieg'],
-          datum: trip?.datum || '',
-          zeit: stop.Zeit,
-        };
-      })
-      .filter(s => s.datum && s.zeit) // Only keep stops with both date and time
-      .sort((a, b) => {
-        // Sort by full datetime (date + time)
-        const dateA = parseDateTime(a.datum, a.zeit);
-        const dateB = parseDateTime(b.datum, b.zeit);
-        return dateA.getTime() - dateB.getTime();
-      });
-
-    // Build full route with all stops, removing duplicates (limit to first 5 for space)
-    const allStops = hinStopsWithDates
-      .map(s => s.name)
-      .filter((name, index, arr) => arr.indexOf(name) === index) // Remove duplicates
-      .slice(0, 5);
-
-    const firstStop = allStops.length > 0 ? allStops[0] : 'Start';
-    
-    // Create route display with all stops
-    const routeDisplay = allStops.length > 1
-      ? `${allStops.join(' - ')} → ${destination}`
-      : `${firstStop} → ${destination}`;
+    // Find first stop from Hinfahrt
+    const hinStops = stops.filter(stop => 
+      hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
+      stop.Zeit && stop.Zeit.trim() !== ''
+    );
+    const firstStop = hinStops.length > 0 ? hinStops[0]['Zustieg/Ausstieg'] : 'Start';
 
     if (hasHin && hasRueck) {
       // Both directions
       return {
-        hin: `↗ ${routeDisplay} (${hinPax} PAX)`,
+        hin: `↗ ${firstStop} → ${destination} (${hinPax} PAX)`,
         rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
       };
     } else if (hasHin) {
-      return { hin: routeDisplay };
+      return { hin: `${firstStop} → ${destination}` };
     } else {
       return { rueck: `${destination} → ${firstStop}` };
     }
