@@ -104,15 +104,16 @@ export const GroupCard = ({
     });
     
     const firstStop = sortedHinStops.length > 0 ? sortedHinStops[0]['Zustieg/Ausstieg'] : 'Start';
+    const firstStopTime = sortedHinStops.length > 0 ? sortedHinStops[0].Zeit : '';
 
     if (hasHin && hasRueck) {
       // Both directions
       return {
-        hin: `↗ ${firstStop} → ${destination} (${hinPax} PAX)`,
+        hin: `↗ ${firstStopTime} ${firstStop} → ${destination} (${hinPax} PAX)`,
         rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
       };
     } else if (hasHin) {
-      return { hin: `${firstStop} → ${destination}` };
+      return { hin: `${firstStopTime} ${firstStop} → ${destination}` };
     } else {
       return { rueck: `${destination} → ${firstStop}` };
     }
