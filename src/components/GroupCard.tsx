@@ -80,12 +80,30 @@ export const GroupCard = ({
     // Get destination from first trip
     const destination = extractDestination(trips[0].reise);
 
-    // Find first stop from Hinfahrt
+    // Find first stop from Hinfahrt with proper sorting for overnight trips
     const hinStops = stops.filter(stop => 
       hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
       stop.Zeit && stop.Zeit.trim() !== ''
     );
-    const firstStop = hinStops.length > 0 ? hinStops[0]['Zustieg/Ausstieg'] : 'Start';
+    
+    // Sort stops by time, treating early morning (00:00-05:59) as next day
+    const sortedHinStops = hinStops.sort((a, b) => {
+      const timeA = a.Zeit || '00:00';
+      const timeB = b.Zeit || '00:00';
+      
+      const [hoursA] = timeA.split(':').map(Number);
+      const [hoursB] = timeB.split(':').map(Number);
+      
+      // Early morning times (00:00-05:59) are next day
+      const dateA = hoursA < 6 ? 1 : 0;
+      const dateB = hoursB < 6 ? 1 : 0;
+      
+      // First compare dates, then times
+      if (dateA !== dateB) return dateA - dateB;
+      return timeA.localeCompare(timeB);
+    });
+    
+    const firstStop = sortedHinStops.length > 0 ? sortedHinStops[0]['Zustieg/Ausstieg'] : 'Start';
 
     if (hasHin && hasRueck) {
       // Both directions
