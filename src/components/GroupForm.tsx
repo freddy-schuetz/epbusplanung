@@ -286,7 +286,11 @@ export const GroupForm = ({
           <Label htmlFor={`busId-${groupId}`}>Bus auswählen</Label>
           <Select
             value={busDetails.busId}
-            onValueChange={(value) => setBusDetails({ ...busDetails, busId: value })}
+            onValueChange={(value) => {
+              const selectedBus = buses.find(b => b.id === value);
+              const autoLuggage = selectedBus && selectedBus.seats >= 70 ? 'Anhänger' : 'ohne';
+              setBusDetails({ ...busDetails, busId: value, luggage: autoLuggage });
+            }}
             disabled={isLocked}
           >
             <SelectTrigger id={`busId-${groupId}`}>
@@ -343,9 +347,10 @@ export const GroupForm = ({
               <SelectValue placeholder="-- Bitte wählen --" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="ohne">ohne</SelectItem>
               <SelectItem value="Koffer">Koffer</SelectItem>
-              <SelectItem value="Hänger">Hänger</SelectItem>
-              <SelectItem value="Koffer + Hänger">Koffer + Hänger</SelectItem>
+              <SelectItem value="Anhänger">Anhänger</SelectItem>
+              <SelectItem value="Koffer + Anhänger">Koffer + Anhänger</SelectItem>
             </SelectContent>
           </Select>
         </div>
