@@ -28,6 +28,17 @@ export function getWeekdayName(date: Date): string {
   return date instanceof Date && !isNaN(date.getTime()) ? weekdays[date.getDay()] : '';
 }
 
+export function getWeekdayAbbreviation(date: Date): string {
+  const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  return date instanceof Date && !isNaN(date.getTime()) ? weekdays[date.getDay()] : '';
+}
+
+export function formatDateWithWeekday(dateString: string, abbreviated: boolean = false): string {
+  const date = parseGermanDate(dateString);
+  const weekday = abbreviated ? getWeekdayAbbreviation(date) : getWeekdayName(date);
+  return `${weekday}, ${dateString}`;
+}
+
 export function getTodayString(): string {
   return formatDate(new Date());
 }
