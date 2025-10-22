@@ -46,6 +46,27 @@ export const DateRow = ({
 }: DateRowProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
+  // Sort trips by product code for better visual grouping
+  const sortedHinfahrten = [...hinfahrten].sort((a, b) => {
+    // First by product code (DWW, DKI, etc.)
+    const codeA = a.produktcode || '';
+    const codeB = b.produktcode || '';
+    if (codeA !== codeB) return codeA.localeCompare(codeB);
+    
+    // Then by time within same product code
+    return (a.uhrzeit || '').localeCompare(b.uhrzeit || '');
+  });
+
+  const sortedRueckfahrten = [...rueckfahrten].sort((a, b) => {
+    // First by product code
+    const codeA = a.produktcode || '';
+    const codeB = b.produktcode || '';
+    if (codeA !== codeB) return codeA.localeCompare(codeB);
+    
+    // Then by time within same product code
+    return (a.uhrzeit || '').localeCompare(b.uhrzeit || '');
+  });
+
   return (
     <div className="bg-card border-2 border-border rounded-xl overflow-hidden mb-8">
       <div
@@ -106,8 +127,8 @@ export const DateRow = ({
                 🟢 Hinfahrten {date}
               </div>
               <div className="space-y-2">
-                {hinfahrten.length > 0 ? (
-                  hinfahrten.map(trip => (
+                {sortedHinfahrten.length > 0 ? (
+                  sortedHinfahrten.map(trip => (
                     <TripCard
                       key={trip.id}
                       trip={trip}
@@ -129,8 +150,8 @@ export const DateRow = ({
                 🔴 Rückfahrten {nextDayKey}
               </div>
               <div className="space-y-2">
-                {rueckfahrten.length > 0 ? (
-                  rueckfahrten.map(trip => (
+                {sortedRueckfahrten.length > 0 ? (
+                  sortedRueckfahrten.map(trip => (
                     <TripCard
                       key={trip.id}
                       trip={trip}
