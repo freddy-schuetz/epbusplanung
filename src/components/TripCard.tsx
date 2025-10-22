@@ -30,6 +30,18 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
+  // Geographic order for return trips (South to North)
+  const GEOGRAPHIC_ORDER = [
+    'Ulm',
+    'Stuttgart',
+    'Karlsruhe',
+    'Mannheim',
+    'Frankfurt',
+    'Montabaur',
+    'Köln',
+    'Essen'
+  ];
+
   // Extract destination from trip name (e.g., "Davos - Sportclub Weissfluh" → "Davos")
   const extractDestination = (tripName: string) => {
     const parts = tripName.split(' - ');
@@ -39,34 +51,49 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   // Calculate route display from stops (safely handle undefined/empty stops)
   const filteredStops = (stops || []).filter(
     stop => stop.Reisecode === trip.reisecode && 
-    stop.Beförderung?.toLowerCase().includes(trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt') &&
-    stop.Zeit && stop.Zeit.trim() !== ''
+    stop.Beförderung?.toLowerCase().includes(trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt')
   );
 
-  // Parse trip date for datetime calculation
-  const [day, month, year] = trip.datum.split('.').map(Number);
-  const baseDate = new Date(year, month - 1, day);
-
-  // Helper function to create full datetime for a stop
-  const getStopDateTime = (stop: Stop) => {
-    const [hours, minutes] = stop.Zeit!.split(':').map(Number);
-    const stopDate = new Date(baseDate);
-    
-    // If early morning (00:00-05:59), assume it's next day for overnight trips
-    if (hours < 6) {
-      stopDate.setDate(stopDate.getDate() + 1);
-    }
-    
-    stopDate.setHours(hours, minutes, 0, 0);
-    return stopDate;
-  };
-
-  // Sort by full datetime (not just time string)
-  const tripStops = filteredStops.sort((a, b) => {
-    const dateA = getStopDateTime(a);
-    const dateB = getStopDateTime(b);
-    return dateA.getTime() - dateB.getTime();
-  });
+  // Sort stops based on direction
+  const tripStops = trip.direction === 'hin' 
+    ? // Hinfahrt: Sort by time
+      filteredStops
+        .filter(stop => stop.Zeit && stop.Zeit.trim() !== '')
+        .sort((a, b) => {
+          const [day, month, year] = trip.datum.split('.').map(Number);
+          const baseDate = new Date(year, month - 1, day);
+          
+          const getStopDateTime = (stop: Stop) => {
+            const [hours, minutes] = stop.Zeit!.split(':').map(Number);
+            const stopDate = new Date(baseDate);
+            
+            // If early morning (00:00-05:59), assume it's next day for overnight trips
+            if (hours < 6) {
+              stopDate.setDate(stopDate.getDate() + 1);
+            }
+            
+            stopDate.setHours(hours, minutes, 0, 0);
+            return stopDate;
+          };
+          
+          const dateA = getStopDateTime(a);
+          const dateB = getStopDateTime(b);
+          return dateA.getTime() - dateB.getTime();
+        })
+    : // Rückfahrt: Sort geographically (South to North)
+      filteredStops.sort((a, b) => {
+        const locationA = a['Zustieg/Ausstieg'] || '';
+        const locationB = b['Zustieg/Ausstieg'] || '';
+        const indexA = GEOGRAPHIC_ORDER.indexOf(locationA);
+        const indexB = GEOGRAPHIC_ORDER.indexOf(locationB);
+        
+        // Unknown cities go to end
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      });
 
   const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Start';
   const destination = extractDestination(trip.reise); // Use actual destination from trip name
@@ -126,10 +153,22 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
       {showStops && tripStops.length > 0 && (
         <div className="px-2 pb-2 border-t border-border">
           <div className="space-y-0.5 mt-1.5">
+            {trip.direction === 'rueck' && (
+              <div className="text-xs font-semibold text-muted-foreground mb-1 px-1">
+                🔴 Rückfahrt (geographische Reihenfolge)
+              </div>
+            )}
             {tripStops.map((stop, idx) => (
-              <div key={idx} className="text-xs flex items-center gap-1.5 py-0.5">
+              <div 
+                key={idx} 
+                className={`text-xs flex items-center gap-1.5 py-0.5 rounded px-1 ${
+                  trip.direction === 'rueck' ? 'bg-destructive/5' : ''
+                }`}
+              >
                 <span className="text-muted-foreground">🚏</span>
-                <span className="font-medium">{stop.Zeit || 'Zeit folgt'}</span>
+                {trip.direction === 'hin' && (
+                  <span className="font-medium">{stop.Zeit || 'Zeit folgt'}</span>
+                )}
                 <span>{stop['Zustieg/Ausstieg']}</span>
                 <span className="text-muted-foreground">-</span>
                 <span className="font-semibold">{stop.Anzahl || 0} PAX</span>
