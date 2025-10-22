@@ -166,21 +166,10 @@ export const GroupCard = ({
           ✅ Fertig
         </Button>
       );
-    } else if (status === 'completed') {
+    } else if (status === 'completed' || status === 'locked') {
       return (
-        <>
-          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSetGroupToDraft(groupId); }}>
-            ✏️ Fertig
-          </Button>
-          <Button size="sm" className="bg-warning text-warning-foreground" onClick={(e) => { e.stopPropagation(); onLockGroup(groupId); }}>
-            🔒 Sperren
-          </Button>
-        </>
-      );
-    } else if (status === 'locked') {
-      return (
-        <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onUnlockGroup(groupId); }}>
-          🔓 Entsperren
+        <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onSetGroupToDraft(groupId); }} className="bg-secondary text-secondary-foreground">
+          ✏️ Bearbeiten
         </Button>
       );
     }
