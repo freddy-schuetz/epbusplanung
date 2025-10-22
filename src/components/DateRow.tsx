@@ -100,12 +100,12 @@ export const DateRow = ({
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 p-5 bg-muted/30">
-            <div className="bg-card rounded-lg p-4 border">
-              <div className="bg-success/10 text-success font-semibold p-3 rounded-lg mb-4 text-center border border-success/30">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3 bg-muted/30">
+            <div className="bg-card rounded-lg p-3 border">
+              <div className="bg-success/10 text-success font-semibold p-2 rounded-lg mb-3 text-center border border-success/30 text-sm">
                 🟢 Hinfahrten {date}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {hinfahrten.length > 0 ? (
                   hinfahrten.map(trip => (
                     <TripCard
@@ -124,11 +124,11 @@ export const DateRow = ({
               </div>
             </div>
 
-            <div className="bg-card rounded-lg p-4 border">
-              <div className="bg-destructive/10 text-destructive font-semibold p-3 rounded-lg mb-4 text-center border border-destructive/30">
+            <div className="bg-card rounded-lg p-3 border">
+              <div className="bg-destructive/10 text-destructive font-semibold p-2 rounded-lg mb-3 text-center border border-destructive/30 text-sm">
                 🔴 Rückfahrten {nextDayKey}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {rueckfahrten.length > 0 ? (
                   rueckfahrten.map(trip => (
                     <TripCard

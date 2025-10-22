@@ -77,34 +77,34 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="bg-card border-2 border-border rounded-lg overflow-hidden transition-all hover:shadow-md"
+      className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-md"
     >
-      <div className="p-4 flex items-center gap-3">
+      <div className="p-2 flex items-center gap-2">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelection(trip.id)}
-          className="w-5 h-5 relative z-10"
+          className="w-4 h-4 relative z-10"
           onClick={(e) => e.stopPropagation()}
         />
         <button
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none p-1 hover:bg-accent rounded transition-colors"
+          className="cursor-grab active:cursor-grabbing touch-none p-0.5 hover:bg-accent rounded transition-colors"
           aria-label="Drag to create group"
         >
-          <GripVertical className="w-5 h-5 text-muted-foreground" />
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div className="flex-1 space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 space-y-0.5">
+          <div className="flex items-center gap-2 flex-wrap text-sm">
             <span className="text-muted-foreground font-medium">{trip.uhrzeit || '--:--'}</span>
             <span className="text-primary font-semibold">{trip.reisecode}</span>
             {trip.produktcode && (
-              <Badge variant="secondary" className="font-semibold">
+              <Badge variant="secondary" className="text-xs py-0 h-5">
                 {trip.produktcode}
               </Badge>
             )}
             <StatusBadge status={trip.planningStatus} />
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
             <span className="font-medium text-foreground">
               {routeDisplay}
             </span>
@@ -117,17 +117,17 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
             e.stopPropagation();
             setShowStops(!showStops);
           }}
-          className="p-2 hover:bg-accent rounded transition-colors"
+          className="p-1 hover:bg-accent rounded transition-colors"
         >
-          {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          {showStops ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </button>
       </div>
       
       {showStops && tripStops.length > 0 && (
-        <div className="px-4 pb-3 border-t border-border">
-          <div className="space-y-1 mt-2">
+        <div className="px-2 pb-2 border-t border-border">
+          <div className="space-y-0.5 mt-1.5">
             {tripStops.map((stop, idx) => (
-              <div key={idx} className="text-sm flex items-center gap-2 py-1">
+              <div key={idx} className="text-xs flex items-center gap-1.5 py-0.5">
                 <span className="text-muted-foreground">🚏</span>
                 <span className="font-medium">{stop.Zeit || 'Zeit folgt'}</span>
                 <span>{stop['Zustieg/Ausstieg']}</span>
