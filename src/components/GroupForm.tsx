@@ -70,7 +70,14 @@ export const GroupForm = ({
   const [showSplitDialog, setShowSplitDialog] = useState(false);
 
   const maxBusCapacity = Math.max(...buses.map(b => b.seats), 61);
-  const needsSplit = totalPassengers > maxBusCapacity;
+  
+  // Check each direction separately for split requirement
+  const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
+  const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
+  
+  const hinNeedsSplit = hinPax > maxBusCapacity;
+  const rueckNeedsSplit = rueckPax > maxBusCapacity;
+  const needsSplit = hinNeedsSplit || rueckNeedsSplit;
 
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
