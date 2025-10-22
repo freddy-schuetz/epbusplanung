@@ -317,8 +317,9 @@ const Index = () => {
       const rueckDate = parseGermanDate(rueckfahrten[0].datum);
       const daysDiff = Math.round((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (daysDiff < 1 || daysDiff > 14) {
-        toast.error('Rückfahrt muss 1-14 Tage nach Hinfahrt liegen');
+      // Allow same-day returns (daysDiff = 0) for day trips
+      if (daysDiff < 0 || daysDiff > 14) {
+        toast.error('Rückfahrt darf nicht vor Hinfahrt liegen und maximal 14 Tage später sein');
         return false;
       }
     }
