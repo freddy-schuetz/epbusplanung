@@ -170,10 +170,24 @@ export const GroupForm = ({
   // Get base trip date from first trip
   const baseTripDate = trips[0].datum; // "DD.MM.YYYY" format
 
+  // Geographic order for German cities (South to North)
+  const CITY_ORDER = [
+    // South (Alps/Bavaria)
+    'Garmisch', 'Oberstdorf', 'Füssen', 'Konstanz', 'Ulm', 'Augsburg', 'München',
+    'Stuttgart', 'Tübingen', 'Karlsruhe', 'Freiburg', 'Heidelberg',
+    // Middle
+    'Mannheim', 'Frankfurt', 'Mainz', 'Wiesbaden', 'Darmstadt',
+    // North Rhine
+    'Koblenz', 'Bonn', 'Köln', 'Düsseldorf', 'Essen', 'Duisburg', 'Dortmund',
+    // Further North
+    'Münster', 'Bielefeld', 'Hannover', 'Bremen', 'Hamburg', 'Lübeck', 'Berlin'
+  ];
+
   // Group stops by location and time, sum passengers, calculate dates
   const aggregatedStops = groupStops.reduce((acc, stop) => {
     const location = stop['Zustieg/Ausstieg'] || 'Unbekannt';
     const stopTime = stop.Zeit || '00:00'; // Use placeholder for stops without time (e.g., Rückfahrt)
+    const isRueckfahrt = stop.Beförderung?.toLowerCase().includes('rückfahrt');
     
     // Calculate actual date for this stop (handle overnight trips)
     let stopDate = baseTripDate;
@@ -183,7 +197,7 @@ export const GroupForm = ({
       stopDate = addDays(baseTripDate, 1);
     }
     
-    const key = `${stopDate}-${stopTime}-${location}`;
+    const key = `${stopDate}-${stopTime}-${location}-${isRueckfahrt ? 'rueck' : 'hin'}`;
     if (!acc[key]) {
       acc[key] = {
         date: stopDate,
@@ -191,15 +205,33 @@ export const GroupForm = ({
         datetime: parseGermanDate(stopDate).getTime() + parseInt(stopTime.split(':')[0]) * 3600000 + parseInt(stopTime.split(':')[1]) * 60000,
         location: location,
         passengers: stop.Anzahl || 0,
+        isRueckfahrt: isRueckfahrt,
       };
     } else {
       acc[key].passengers += stop.Anzahl || 0;
     }
     return acc;
-  }, {} as Record<string, { date: string; time: string; datetime: number; location: string; passengers: number }>);
+  }, {} as Record<string, { date: string; time: string; datetime: number; location: string; passengers: number; isRueckfahrt: boolean }>);
 
-  // Sort by actual datetime
-  const sortedStops = Object.values(aggregatedStops).sort((a, b) => a.datetime - b.datetime);
+  // Separate and sort stops by direction
+  const allStops = Object.values(aggregatedStops);
+  const hinfahrtStops = allStops.filter(s => !s.isRueckfahrt).sort((a, b) => a.datetime - b.datetime);
+  
+  const rueckfahrtStops = allStops.filter(s => s.isRueckfahrt).sort((a, b) => {
+    // Geographic sorting for return trips (South to North)
+    const cityIndexA = CITY_ORDER.findIndex(city => a.location.includes(city));
+    const cityIndexB = CITY_ORDER.findIndex(city => b.location.includes(city));
+    
+    // Unknown cities go to end
+    if (cityIndexA === -1 && cityIndexB === -1) return 0;
+    if (cityIndexA === -1) return 1;
+    if (cityIndexB === -1) return -1;
+    
+    return cityIndexA - cityIndexB;
+  });
+  
+  // Combine: Hinfahrt first (time-sorted), then Rückfahrt (geographically sorted)
+  const sortedStops = [...hinfahrtStops, ...rueckfahrtStops];
 
   return (
     <div className="space-y-5">
