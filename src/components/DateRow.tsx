@@ -9,7 +9,7 @@ interface DateRowProps {
   date: string;
   weekday: string;
   isToday: boolean;
-  plannedGroups: Array<{ groupId: string; trips: Trip[] }>;
+  plannedGroups: Array<{ groupId: string; trips: Trip[]; displayMode?: 'departure' | 'return' }>;
   hinfahrten: Trip[];
   rueckfahrten: Trip[];
   nextDayKey: string;
@@ -82,10 +82,11 @@ export const DateRow = ({
                 </div>
                 {plannedGroups.map(group => (
                   <GroupCard
-                    key={group.groupId}
+                    key={`${group.groupId}-${group.displayMode || 'departure'}`}
                     groupId={group.groupId}
                     trips={group.trips}
                     stops={stops}
+                    displayMode={group.displayMode}
                     onUpdateGroup={onUpdateGroup}
                     onCompleteGroup={onCompleteGroup}
                     onSetGroupToDraft={onSetGroupToDraft}

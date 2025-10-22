@@ -13,6 +13,7 @@ interface GroupCardProps {
   groupId: string;
   trips: Trip[];
   stops: Stop[];
+  displayMode?: 'departure' | 'return';
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -26,6 +27,7 @@ export const GroupCard = ({
   groupId,
   trips,
   stops,
+  displayMode = 'departure',
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
@@ -188,7 +190,9 @@ export const GroupCard = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="font-bold text-lg">🚌 Busplanung</span>
+          <span className="font-bold text-lg">
+            {displayMode === 'return' ? '🚌 Busplanung (Rückfahrt)' : '🚌 Busplanung'}
+          </span>
           {busGroup?.trip_number && (
             <span className="bg-white/30 px-3 py-1 rounded font-bold">
               Fahrt-Nr: {busGroup.trip_number}
@@ -204,7 +208,7 @@ export const GroupCard = ({
               <Tooltip>
                 <TooltipTrigger>
                   <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold">
-                    🅿️ STANDBUS
+                    {displayMode === 'return' ? '🅿️ STANDBUS ← RÜCKFAHRT' : '🅿️ STANDBUS → HINFAHRT'}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>

@@ -760,7 +760,7 @@ const Index = () => {
   // Organize data by date
   const organizedData = () => {
     const allDates = new Set<string>();
-    const plannedGroupsByDate: Record<string, Array<{ groupId: string; trips: Trip[] }>> = {};
+    const plannedGroupsByDate: Record<string, Array<{ groupId: string; trips: Trip[]; displayMode?: 'departure' | 'return' }>> = {};
     const hinfahrtenByDate: Record<string, Trip[]> = {};
     const rueckfahrtenByDate: Record<string, Trip[]> = {};
     const processedGroups = new Set<string>();
@@ -777,10 +777,39 @@ const Index = () => {
         const groupTrips = filteredTrips.filter(t => t.groupId === trip.groupId);
         const groupDate = groupTrips[0].datum;
         if (!plannedGroupsByDate[groupDate]) plannedGroupsByDate[groupDate] = [];
+        
+        // Add to departure date
         plannedGroupsByDate[groupDate].push({
           groupId: trip.groupId,
           trips: groupTrips,
+          displayMode: 'departure',
         });
+        
+        // Check if it's a Standbus (>2 days between Hin and Rück)
+        const hinTrips = groupTrips.filter(t => t.direction === 'hin');
+        const rueckTrips = groupTrips.filter(t => t.direction === 'rueck');
+        
+        if (hinTrips.length > 0 && rueckTrips.length > 0) {
+          const [hinDay, hinMonth, hinYear] = hinTrips[0].datum.split('.').map(Number);
+          const [rueckDay, rueckMonth, rueckYear] = rueckTrips[0].datum.split('.').map(Number);
+          const hinDate = new Date(hinYear, hinMonth - 1, hinDay);
+          const rueckDate = new Date(rueckYear, rueckMonth - 1, rueckDay);
+          const standbusDays = Math.floor((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (standbusDays > 2) {
+            // It's a Standbus - also add to return date
+            const rueckDateKey = rueckTrips[0].datum;
+            allDates.add(rueckDateKey);
+            if (!plannedGroupsByDate[rueckDateKey]) plannedGroupsByDate[rueckDateKey] = [];
+            
+            plannedGroupsByDate[rueckDateKey].push({
+              groupId: trip.groupId,
+              trips: groupTrips,
+              displayMode: 'return',
+            });
+          }
+        }
+        
         processedGroups.add(trip.groupId);
       } else if (!trip.groupId && trip.planningStatus === 'unplanned') {
         if (trip.direction === 'hin') {
