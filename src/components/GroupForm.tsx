@@ -294,7 +294,7 @@ export const GroupForm = ({
             </SelectTrigger>
             <SelectContent>
               {buses.map(bus => {
-                const tooSmall = totalPassengers > bus.seats;
+                const tooSmall = hinPax > bus.seats || rueckPax > bus.seats;
                 return (
                   <SelectItem 
                     key={bus.id} 
