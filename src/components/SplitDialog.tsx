@@ -107,11 +107,22 @@ export const SplitDialog = ({
     const targetPax = Math.ceil(totalPax / 2);
     const newAssignments: Record<string, 'bus1' | 'bus2'> = {};
     
-    // Sort stops by time (handle null/undefined values)
+    // Sort stops chronologically, considering overnight trips
     const sortedStops = [...enhancedStops].sort((a, b) => {
-      const timeA = a.time || '';
-      const timeB = b.time || '';
-      return timeA.localeCompare(timeB);
+      // Handle "Zeit folgt" or empty time entries
+      if (!a.time || a.time === 'Zeit folgt') return 1;
+      if (!b.time || b.time === 'Zeit folgt') return -1;
+      
+      const [hoursA] = a.time.split(':').map(Number);
+      const [hoursB] = b.time.split(':').map(Number);
+      
+      // Early morning times (00:00-05:59) are next day
+      const dayA = hoursA < 6 ? 1 : 0;
+      const dayB = hoursB < 6 ? 1 : 0;
+      
+      // First sort by day, then by time
+      if (dayA !== dayB) return dayA - dayB;
+      return a.time.localeCompare(b.time);
     });
     
     let bus1Current = 0;
@@ -350,7 +361,22 @@ export const SplitDialog = ({
             <Label className="font-semibold">Haltestellen zuweisen:</Label>
             <ScrollArea className="h-[300px] rounded-md border">
               <div className="p-4 space-y-2">
-                {enhancedStops.map((stop) => {
+                {[...enhancedStops].sort((a, b) => {
+                  // Sort chronologically, considering overnight trips
+                  if (!a.time || a.time === 'Zeit folgt') return 1;
+                  if (!b.time || b.time === 'Zeit folgt') return -1;
+                  
+                  const [hoursA] = a.time.split(':').map(Number);
+                  const [hoursB] = b.time.split(':').map(Number);
+                  
+                  // Early morning times (00:00-05:59) are next day
+                  const dayA = hoursA < 6 ? 1 : 0;
+                  const dayB = hoursB < 6 ? 1 : 0;
+                  
+                  // First sort by day, then by time
+                  if (dayA !== dayB) return dayA - dayB;
+                  return a.time.localeCompare(b.time);
+                }).map((stop) => {
                   const stopKey = `${stop.Reisecode}-${stop.time}-${stop.stopName}`;
                   const assignment = stopAssignments[stopKey];
                   
