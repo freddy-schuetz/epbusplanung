@@ -293,29 +293,40 @@ const Index = () => {
     const hinfahrten = tripsToValidate.filter(t => t.direction === 'hin');
     const rueckfahrten = tripsToValidate.filter(t => t.direction === 'rueck');
     
-    // Check all Hinfahrten have same date
+    // Check Hinfahrten dates - allow overnight trips (max 1 day difference)
     if (hinfahrten.length > 1) {
-      const hinDates = new Set(hinfahrten.map(t => t.datum));
-      if (hinDates.size > 1) {
-        toast.error('Alle Hinfahrten müssen am gleichen Datum sein');
+      const hinDates = hinfahrten.map(t => parseGermanDate(t.datum));
+      const minDate = Math.min(...hinDates.map(d => d.getTime()));
+      const maxDate = Math.max(...hinDates.map(d => d.getTime()));
+      const daysDiff = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+      
+      // Allow 0-1 day difference for overnight trips (e.g., 22:00 → 00:30)
+      if (daysDiff > 1) {
+        toast.error('Hinfahrten müssen am gleichen Tag oder Folgetag (Nachtfahrt) sein');
         return false;
       }
     }
     
-    // Check all Rückfahrten have same date
+    // Check Rückfahrten dates - allow overnight trips (max 1 day difference)
     if (rueckfahrten.length > 1) {
-      const rueckDates = new Set(rueckfahrten.map(t => t.datum));
-      if (rueckDates.size > 1) {
-        toast.error('Alle Rückfahrten müssen am gleichen Datum sein');
+      const rueckDates = rueckfahrten.map(t => parseGermanDate(t.datum));
+      const minDate = Math.min(...rueckDates.map(d => d.getTime()));
+      const maxDate = Math.max(...rueckDates.map(d => d.getTime()));
+      const daysDiff = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+      
+      if (daysDiff > 1) {
+        toast.error('Rückfahrten müssen am gleichen Tag oder Folgetag (Nachtfahrt) sein');
         return false;
       }
     }
     
-    // Check Hin+Rück date difference if mixing directions
+    // Check Hin+Rück date difference - use earliest Hinfahrt date
     if (hinfahrten.length > 0 && rueckfahrten.length > 0) {
-      const hinDate = parseGermanDate(hinfahrten[0].datum);
-      const rueckDate = parseGermanDate(rueckfahrten[0].datum);
-      const daysDiff = Math.round((rueckDate.getTime() - hinDate.getTime()) / (1000 * 60 * 60 * 24));
+      const hinDates = hinfahrten.map(t => parseGermanDate(t.datum));
+      const rueckDates = rueckfahrten.map(t => parseGermanDate(t.datum));
+      const earliestHinDate = new Date(Math.min(...hinDates.map(d => d.getTime())));
+      const earliestRueckDate = new Date(Math.min(...rueckDates.map(d => d.getTime())));
+      const daysDiff = Math.round((earliestRueckDate.getTime() - earliestHinDate.getTime()) / (1000 * 60 * 60 * 24));
       
       // Allow same-day returns (daysDiff = 0) for day trips
       if (daysDiff < 0 || daysDiff > 14) {
