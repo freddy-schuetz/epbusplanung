@@ -41,7 +41,7 @@ export const GroupForm = ({
   onSplitGroup,
 }: GroupFormProps) => {
   const firstTrip = trips[0];
-  const isLocked = firstTrip.planningStatus === 'locked';
+  const isLocked = firstTrip.planningStatus === 'locked' || firstTrip.planningStatus === 'completed';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
 
   // Check for Standbus (bus stays on-site)
