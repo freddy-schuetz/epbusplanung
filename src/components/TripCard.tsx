@@ -71,6 +71,9 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Start';
   const destination = extractDestination(trip.reise); // Use actual destination from trip name
   const routeDisplay = tripStops.length > 0 ? `${firstStop} → ${destination}` : trip.reise;
+  
+  // Get the actual first departure time from sorted stops
+  const departureTime = tripStops.length > 0 ? tripStops[0]?.Zeit : trip.uhrzeit;
 
   return (
     <div
@@ -95,7 +98,7 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
         </button>
         <div className="flex-1 space-y-0.5">
           <div className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="text-muted-foreground font-medium">{trip.uhrzeit || '--:--'}</span>
+            <span className="text-muted-foreground font-medium">{departureTime || '--:--'}</span>
             <span className="text-primary font-semibold">{trip.reisecode}</span>
             {trip.produktcode && (
               <Badge variant="secondary" className="text-xs py-0 h-5">
