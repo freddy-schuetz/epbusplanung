@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
 import { StatusBadge } from './StatusBadge';
 import { Trip, Stop } from '@/types/bus';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface TripCardProps {
@@ -14,6 +15,8 @@ interface TripCardProps {
 }
 
 export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: TripCardProps) => {
+  const [showStops, setShowStops] = useState(false);
+  
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: trip.id,
     data: {
@@ -109,7 +112,32 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
             <span>Kont: {trip.kontingent}</span>
           </div>
         </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowStops(!showStops);
+          }}
+          className="p-2 hover:bg-accent rounded transition-colors"
+        >
+          {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
       </div>
+      
+      {showStops && tripStops.length > 0 && (
+        <div className="px-4 pb-3 border-t border-border">
+          <div className="space-y-1 mt-2">
+            {tripStops.map((stop, idx) => (
+              <div key={idx} className="text-sm flex items-center gap-2 py-1">
+                <span className="text-muted-foreground">🚏</span>
+                <span className="font-medium">{stop.Zeit || 'Zeit folgt'}</span>
+                <span>{stop['Zustieg/Ausstieg']}</span>
+                <span className="text-muted-foreground">-</span>
+                <span className="font-semibold">{stop.Anzahl || 0} PAX</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
