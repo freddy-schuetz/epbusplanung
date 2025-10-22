@@ -169,8 +169,8 @@ export const GroupCard = ({
     } else if (status === 'completed') {
       return (
         <>
-          <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onSetGroupToDraft(groupId); }}>
-            ↩️ Entwurf
+          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onSetGroupToDraft(groupId); }}>
+            ✏️ Fertig
           </Button>
           <Button size="sm" className="bg-warning text-warning-foreground" onClick={(e) => { e.stopPropagation(); onLockGroup(groupId); }}>
             🔒 Sperren
