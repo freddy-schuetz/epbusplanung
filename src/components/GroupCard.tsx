@@ -42,16 +42,19 @@ export const GroupCard = ({
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
   const firstTrip = trips[0];
-  const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
   const directionText = hasHin && hasRueck ? '↔️ HIN+RÜCK' : hasHin ? '🟢 HIN' : '🔴 RÜCK';
   
+  // Calculate PAX per direction
+  const hinTrips = trips.filter(t => t.direction === 'hin');
+  const rueckTrips = trips.filter(t => t.direction === 'rueck');
+  const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
+  const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
+  
   const isSplitGroup = busGroup && busGroup.total_parts > 1;
 
   // Check for Standbus (bus stays on-site for >2 days)
-  const hinTrips = trips.filter(t => t.direction === 'hin');
-  const rueckTrips = trips.filter(t => t.direction === 'rueck');
   
   let isStandbus = false;
   let standbusDays = 0;
@@ -76,9 +79,6 @@ export const GroupCard = ({
   // Calculate route displays for both directions
   const calculateRoutes = () => {
     if (!hasHin && !hasRueck) return null;
-
-    const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
-    const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
 
     // Build Hinfahrt route with all stops
     let hinRoute = null;
@@ -277,8 +277,16 @@ export const GroupCard = ({
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm">{trips.length} Reise{trips.length !== 1 ? 'n' : ''}</span>
-          <span className="text-sm">{totalPassengers} PAX</span>
+          {hinPax > 0 && rueckPax > 0 ? (
+            <>
+              <span className="text-sm">HIN: {hinPax} PAX</span>
+              <span className="text-sm">RÜCK: {rueckPax} PAX</span>
+            </>
+          ) : hinPax > 0 ? (
+            <span className="text-sm">{hinPax} PAX</span>
+          ) : (
+            <span className="text-sm">{rueckPax} PAX</span>
+          )}
           {busInfo && <span className="text-sm">{busInfo}</span>}
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
             <Button
