@@ -80,46 +80,89 @@ export const GroupCard = ({
     const hinPax = hinTrips.reduce((sum, t) => sum + t.buchungen, 0);
     const rueckPax = rueckTrips.reduce((sum, t) => sum + t.buchungen, 0);
 
-    // Get destination from first trip
-    const destination = extractDestination(trips[0].reise);
-
-    // Find first stop from Hinfahrt with proper sorting for overnight trips
-    const hinStops = stops.filter(stop => 
-      hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-      stop.Zeit && stop.Zeit.trim() !== ''
-    );
-    
-    // Sort stops by time, treating early morning (00:00-05:59) as next day
-    const sortedHinStops = hinStops.sort((a, b) => {
-      const timeA = a.Zeit || '00:00';
-      const timeB = b.Zeit || '00:00';
+    // Build Hinfahrt route with all stops
+    let hinRoute = null;
+    if (hasHin) {
+      const hinStops = stops.filter(stop => 
+        hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
+        stop.Zeit && stop.Zeit.trim() !== ''
+      );
       
-      const [hoursA] = timeA.split(':').map(Number);
-      const [hoursB] = timeB.split(':').map(Number);
+      // Sort stops by time, treating early morning (00:00-05:59) as next day
+      const sortedHinStops = hinStops.sort((a, b) => {
+        const timeA = a.Zeit || '00:00';
+        const timeB = b.Zeit || '00:00';
+        
+        const [hoursA] = timeA.split(':').map(Number);
+        const [hoursB] = timeB.split(':').map(Number);
+        
+        // Early morning times (00:00-05:59) are next day
+        const dateA = hoursA < 6 ? 1 : 0;
+        const dateB = hoursB < 6 ? 1 : 0;
+        
+        // First compare dates, then times
+        if (dateA !== dateB) return dateA - dateB;
+        return timeA.localeCompare(timeB);
+      });
       
-      // Early morning times (00:00-05:59) are next day
-      const dateA = hoursA < 6 ? 1 : 0;
-      const dateB = hoursB < 6 ? 1 : 0;
+      // Get unique stop names in chronological order
+      const stopNames = sortedHinStops.map(s => s['Zustieg/Ausstieg']);
       
-      // First compare dates, then times
-      if (dateA !== dateB) return dateA - dateB;
-      return timeA.localeCompare(timeB);
-    });
-    
-    const firstStop = sortedHinStops.length > 0 ? sortedHinStops[0]['Zustieg/Ausstieg'] : 'Start';
-    const firstStopTime = sortedHinStops.length > 0 ? sortedHinStops[0].Zeit : '';
-
-    if (hasHin && hasRueck) {
-      // Both directions
-      return {
-        hin: `↗ ${firstStopTime} ${firstStop} → ${destination} (${hinPax} PAX)`,
-        rueck: `↘ ${destination} → ${firstStop} (${rueckPax} PAX)`
-      };
-    } else if (hasHin) {
-      return { hin: `${firstStopTime} ${firstStop} → ${destination}` };
-    } else {
-      return { rueck: `${destination} → ${firstStop}` };
+      // Get product codes (first 3 chars, e.g., DPW, DWW)
+      const productCodes = [...new Set(
+        hinTrips.map(t => t.produktcode?.substring(0, 3)).filter(Boolean)
+      )].join('/');
+      
+      if (sortedHinStops.length > 0) {
+        const firstTime = sortedHinStops[0].Zeit || '';
+        // Build route: "22:00 Köln → Frankfurt → Karlsruhe → DPW"
+        const routeParts = [...new Set(stopNames), productCodes];
+        hinRoute = `↗ ${firstTime} ${routeParts.join(' → ')} (${hinPax} PAX)`;
+      }
     }
+
+    // Build Rückfahrt route with all stops in reverse geographic order
+    let rueckRoute = null;
+    if (hasRueck) {
+      const rueckStops = stops.filter(stop => 
+        rueckTrips.some(trip => trip.reisecode === stop.Reisecode) &&
+        stop.Zeit && stop.Zeit.trim() !== ''
+      );
+      
+      // Sort stops by time for geographic order
+      const sortedRueckStops = rueckStops.sort((a, b) => {
+        const timeA = a.Zeit || '00:00';
+        const timeB = b.Zeit || '00:00';
+        
+        const [hoursA] = timeA.split(':').map(Number);
+        const [hoursB] = timeB.split(':').map(Number);
+        
+        const dateA = hoursA < 6 ? 1 : 0;
+        const dateB = hoursB < 6 ? 1 : 0;
+        
+        if (dateA !== dateB) return dateA - dateB;
+        return timeA.localeCompare(timeB);
+      });
+      
+      // Get unique stop names
+      const stopNames = sortedRueckStops.map(s => s['Zustieg/Ausstieg']);
+      
+      // Get product codes
+      const productCodes = [...new Set(
+        rueckTrips.map(t => t.produktcode?.substring(0, 3)).filter(Boolean)
+      )].join('/');
+      
+      if (sortedRueckStops.length > 0) {
+        // Build route: "DPW → Karlsruhe → Frankfurt → Köln"
+        const routeParts = [productCodes, ...new Set(stopNames)];
+        rueckRoute = `↘ ${routeParts.join(' → ')} (${rueckPax} PAX)`;
+      }
+    }
+
+    return {
+      ...(hinRoute && { hin: hinRoute }),
+      ...(rueckRoute && { rueck: rueckRoute })
+    };
   };
 
   const routeDisplays = calculateRoutes();
@@ -190,9 +233,6 @@ export const GroupCard = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="font-bold text-lg">
-            {displayMode === 'return' ? '🚌 Busplanung (Rückfahrt)' : '🚌 Busplanung'}
-          </span>
           {busGroup?.trip_number && (
             <span className="bg-white/30 px-3 py-1 rounded font-bold">
               Fahrt-Nr: {busGroup.trip_number}
