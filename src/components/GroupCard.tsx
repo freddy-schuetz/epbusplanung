@@ -117,7 +117,7 @@ export const GroupCard = ({
         const firstTime = sortedHinStops[0].Zeit || '';
         // Build route: "22:00 Köln → Frankfurt → Karlsruhe → DPW"
         const routeParts = [...new Set(stopNames), productCodes];
-        hinRoute = `↗ ${firstTime} ${routeParts.join(' → ')} (${hinPax} PAX)`;
+        hinRoute = `↗ ${firstTime} ${routeParts.join(' → ')}`;
       }
     }
 
@@ -155,7 +155,7 @@ export const GroupCard = ({
       if (sortedRueckStops.length > 0) {
         // Build route: "DPW → Karlsruhe → Frankfurt → Köln"
         const routeParts = [productCodes, ...new Set(stopNames)];
-        rueckRoute = `↘ ${routeParts.join(' → ')} (${rueckPax} PAX)`;
+        rueckRoute = `↘ ${routeParts.join(' → ')}`;
       }
     }
 
