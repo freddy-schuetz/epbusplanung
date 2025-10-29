@@ -34,6 +34,7 @@ export const HubDialog = ({
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [candidateGroups, setCandidateGroups] = useState<BusGroup[]>([]);
   const [collectorGroupId, setCollectorGroupId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Get stops for current trips
   const currentTripStops = stops.filter(stop =>
@@ -92,13 +93,14 @@ export const HubDialog = ({
   const handleCreateHub = async () => {
     if (!selectedStop || !collectorGroupId) return;
 
-    const hubId = `hub-${selectedStop.toLowerCase().replace(/\s+/g, '-')}-${currentGroup.trips[0].datum}-${Date.now()}`;
+    const hubId = `hub-${selectedStop.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     
     try {
+      setLoading(true);
       const allInvolvedGroupIds = [currentGroup.id, ...selectedGroupIds];
       
       // Update collector group
-      const { error: collectorError } = await supabase
+      await supabase
         .from('bus_groups')
         .update({
           hub_role: 'collector' as 'collector' | 'hub_start',
@@ -107,12 +109,10 @@ export const HubDialog = ({
         })
         .eq('id', collectorGroupId);
 
-      if (collectorError) throw collectorError;
-
       // Update non-collector groups as hub_start (they start at hub)
       const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       if (nonCollectorIds.length > 0) {
-        const { error: hubStartError } = await supabase
+        await supabase
           .from('bus_groups')
           .update({
             hub_role: 'hub_start' as 'collector' | 'hub_start',
@@ -120,17 +120,16 @@ export const HubDialog = ({
             hub_location: selectedStop,
           })
           .in('id', nonCollectorIds);
-
-        if (hubStartError) throw hubStartError;
       }
 
       toast.success(`Hub "${selectedStop}" erfolgreich erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
       handleClose();
-      window.location.reload();
+      setTimeout(() => window.location.reload(), 100);
       
     } catch (error) {
       console.error('Error creating hub:', error);
       toast.error('Fehler beim Erstellen des Hubs');
+      setLoading(false);
     }
   };
 
@@ -277,6 +276,33 @@ export const HubDialog = ({
                 ...selectedGroupIds
               ];
 
+              // Helper to extract destination from trip name or stops
+              const getDestination = (groupId: string) => {
+                const groupTrips = groupId === currentGroup.id 
+                  ? currentGroup.trips 
+                  : allTrips.filter(t => t.groupId === groupId);
+                
+                if (groupTrips.length === 0) return 'Ziel';
+                
+                const firstTrip = groupTrips[0];
+                const tripName = firstTrip.reisecode || '';
+                
+                // Common destination mappings from trip codes
+                if (tripName.includes('SSL') || tripName.includes('Saalbach')) return 'Saalbach';
+                if (tripName.includes('SVS') || tripName.includes('Scoul')) return 'Scoul';
+                if (tripName.includes('DPW') || tripName.includes('Davos')) return 'Davos';
+                
+                // Fallback: get last stop chronologically
+                const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
+                const chronologicalStops = [...tripStops].sort((a, b) => {
+                  const timeA = a.Zeit || '';
+                  const timeB = b.Zeit || '';
+                  return timeA.localeCompare(timeB);
+                });
+                
+                return chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
+              };
+
               // Find common stops BEFORE hub (chronologically sorted by time)
               const getStopsBeforeHub = (groupId: string) => {
                 const groupTrips = groupId === currentGroup.id 
@@ -328,24 +354,15 @@ export const HubDialog = ({
                     {allInvolvedGroupIds.map(groupId => {
                       const groupTrips = groupId === currentGroup.id ? currentGroup.trips : allTrips.filter(t => t.groupId === groupId);
                       const totalPax = groupTrips.reduce((sum, t) => sum + t.buchungen, 0);
-                      const firstTrip = groupTrips[0];
-                      const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                      
-                      // Sort stops by Zeit (time) to get correct chronological order
-                      const chronologicalStops = [...tripStops].sort((a, b) => {
-                        const timeA = a.Zeit || '';
-                        const timeB = b.Zeit || '';
-                        return timeA.localeCompare(timeB);
-                      });
                       
                       // Get first stop before hub as origin
                       const stopsBeforeHub = getStopsBeforeHub(groupId);
                       const origin = stopsBeforeHub.length > 0 
                         ? stopsBeforeHub[0] 
-                        : chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+                        : 'Start';
                       
-                      // Get final destination (last stop in chronological order)
-                      const destination = chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
+                      // Get final destination using helper
+                      const destination = getDestination(groupId);
                       
                       const isCollector = collectorGroupId === groupId;
                       const busGroup = allBusGroups.find(bg => bg.id === groupId);
@@ -409,10 +426,10 @@ export const HubDialog = ({
                     </Button>
                     <Button
                       onClick={handleCreateHub}
-                      disabled={!collectorGroupId}
+                      disabled={!collectorGroupId || loading}
                       className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                     >
-                      🔄 Hub erstellen
+                      {loading ? 'Erstelle Hub...' : '🔄 Hub erstellen'}
                     </Button>
                   </DialogFooter>
                 </>
