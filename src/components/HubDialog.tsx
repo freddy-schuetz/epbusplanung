@@ -309,13 +309,6 @@ export const HubDialog = ({
       // 3. Update non-collector groups - remove stops before hub AND update hub stop passengers
       const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       
-      // Calculate total passengers arriving at hub (all passengers before hub from all groups)
-      let totalPassengersArrivingAtHub = 0;
-      for (const stopName in totalPassengersBeforeHub) {
-        totalPassengersArrivingAtHub += totalPassengersBeforeHub[stopName];
-      }
-      console.log(`[HubDialog] 🔍 Total passengers arriving at hub: ${totalPassengersArrivingAtHub}`);
-      
       for (const gId of nonCollectorIds) {
         const groupTrips = gId === currentGroup.id 
           ? currentGroup.trips 
@@ -334,12 +327,25 @@ export const HubDialog = ({
             // Keep only stops from hub onwards
             const newStops = chronologicalStops.slice(hubIndex);
             
-            // Calculate passengers at hub: original passengers at and after hub + transferred passengers
-            const originalPassengersAtAndAfterHub = chronologicalStops
+            // Calculate passengers TRANSFERRING TO this outgoing bus:
+            // Sum passengers from OTHER groups (not this group) at stops before hub
+            let transferredPassengers = 0;
+            for (const otherGroupId of allInvolvedGroupIds) {
+              if (otherGroupId === gId) continue; // Skip own group to avoid double-counting
+              
+              const stopsBeforeHub = getStopsBeforeHubForGroup(otherGroupId);
+              const totalFromOtherGroup = stopsBeforeHub.reduce((sum, stop) => sum + (stop.Anzahl || 0), 0);
+              transferredPassengers += totalFromOtherGroup;
+              
+              console.log(`[HubDialog] 🔍 OUTGOING ${trip.reisecode}: Receiving ${totalFromOtherGroup} PAX from group ${otherGroupId}`);
+            }
+            
+            // Calculate own passengers at and after hub (already on this bus)
+            const ownPassengersAtAndAfterHub = chronologicalStops
               .slice(hubIndex)
               .reduce((sum, stop) => sum + (stop.Anzahl || 0), 0);
             
-            const combinedHubPassengers = originalPassengersAtAndAfterHub + totalPassengersArrivingAtHub;
+            const combinedHubPassengers = ownPassengersAtAndAfterHub + transferredPassengers;
             
             // Update first stop (hub location) with combined passengers
             if (newStops.length > 0) {
@@ -348,9 +354,12 @@ export const HubDialog = ({
                 Anzahl: combinedHubPassengers
               };
               
-              console.log(`[HubDialog] 🔍 OUTGOING: Trip ${trip.reisecode} - removing ${hubIndex} stops before hub`);
-              console.log(`[HubDialog] 🔍 OUTGOING: Old stops count: ${chronologicalStops.length}, New stops count: ${newStops.length}`);
-              console.log(`[HubDialog] 🔍 OUTGOING: Hub stop "${newStops[0]?.['Zustieg/Ausstieg']}" updated: ${originalPassengersAtAndAfterHub} original + ${totalPassengersArrivingAtHub} transferred = ${combinedHubPassengers} PAX`);
+              console.log(`[HubDialog] 🔍 OUTGOING: Trip ${trip.reisecode}`);
+              console.log(`  - Removing ${hubIndex} stops before hub`);
+              console.log(`  - Old stops count: ${chronologicalStops.length}, New stops count: ${newStops.length}`);
+              console.log(`  - Own PAX at/after hub: ${ownPassengersAtAndAfterHub}`);
+              console.log(`  - Transferred PAX from other groups: ${transferredPassengers}`);
+              console.log(`  - Hub stop "${newStops[0]?.['Zustieg/Ausstieg']}" updated to: ${combinedHubPassengers} PAX`);
             }
             
             const { error: tripUpdateError } = await supabase
