@@ -47,16 +47,20 @@ export const HubDialog = ({
   const handleStopSelect = (stopName: string) => {
     setSelectedStop(stopName);
     
-    // Find trips passing through this stop on same day
+    // Find ALL trips passing through this stop on same day
+    // Passengers from different origins going to different destinations can be redistributed!
     const date = currentGroup.trips[0].datum;
     const candidates = allTrips.filter(trip => {
-      // Must be unplanned
+      // Skip trips already in current group
+      if (currentGroup.trips.some(t => t.id === trip.id)) return false;
+      
+      // Must be unplanned (not already assigned to a group)
       if (trip.planningStatus !== 'unplanned') return false;
       
       // Must be same date
       if (trip.datum !== date) return false;
       
-      // Must pass through selected stop
+      // Must pass through selected hub stop - this is the ONLY requirement!
       const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
       return tripStops.some(s => s['Zustieg/Ausstieg'] === stopName);
     });
@@ -176,9 +180,12 @@ export const HubDialog = ({
               </p>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Wählen Sie Fahrten, die an diesem Hub umsteigen:
-            </p>
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg mb-3">
+              <p className="text-sm font-semibold">📍 Fahrten durch {selectedStop} am {currentGroup.trips[0].datum}:</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Wählen Sie ALLE Fahrten durch diesen Hub - Passagiere werden automatisch neu verteilt!
+              </p>
+            </div>
 
             {candidateTrips.length === 0 ? (
               <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg">
@@ -189,23 +196,33 @@ export const HubDialog = ({
               </div>
             ) : (
               <div className="space-y-2">
-                {candidateTrips.map(trip => (
-                  <div
-                    key={trip.id}
-                    className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      checked={selectedTripIds.includes(trip.id)}
-                      onCheckedChange={() => handleTripToggle(trip.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium">{trip.reise}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {trip.direction === 'hin' ? '🟢 HIN' : '🔴 RÜCK'} • {trip.uhrzeit} • {trip.buchungen} PAX
-                      </p>
+                {candidateTrips.map(trip => {
+                  // Extract origin and destination from trip name
+                  const parts = trip.reise.split(' - ');
+                  const origin = parts[parts.length - 1]?.trim() || trip.reise;
+                  const destination = parts[0]?.trim() || trip.reise;
+                  
+                  return (
+                    <div
+                      key={trip.id}
+                      className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={selectedTripIds.includes(trip.id)}
+                        onCheckedChange={() => handleTripToggle(trip.id)}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium">{origin} → {destination}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {trip.direction === 'hin' ? '🟢 HIN' : '🔴 RÜCK'} • {trip.uhrzeit} • {trip.buchungen} PAX
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          🔄 Passagiere werden im Hub neu verteilt
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -237,15 +254,41 @@ export const HubDialog = ({
               <p className="text-sm">Datum: {currentGroup.trips[0].datum}</p>
             </div>
 
-            <div className="space-y-3">
-              <p className="font-semibold text-sm">Automatische Weiterfahrten von {selectedStop}:</p>
-              {(() => {
-                // Group trips by destination
-                const destinationMap = new Map<string, { totalPax: number; trips: string[] }>();
-                
-                selectedTripIds.forEach(tripId => {
+            <div className="grid grid-cols-2 gap-4">
+              {/* Incoming trips */}
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">📥 Ankommend:</h4>
+                {currentGroup.trips.map(trip => {
+                  const origin = trip.reise.split(' - ')[trip.reise.split(' - ').length - 1]?.trim() || trip.reise;
+                  return (
+                    <div key={trip.id} className="p-2 border rounded-lg bg-green-50 dark:bg-green-950/20 text-sm">
+                      <p className="font-medium">{origin} → {selectedStop}</p>
+                      <p className="text-xs text-muted-foreground">{trip.buchungen} PAX</p>
+                    </div>
+                  );
+                })}
+                {selectedTripIds.map(tripId => {
                   const trip = candidateTrips.find(t => t.id === tripId);
-                  if (trip) {
+                  if (!trip) return null;
+                  const origin = trip.reise.split(' - ')[trip.reise.split(' - ').length - 1]?.trim() || trip.reise;
+                  return (
+                    <div key={trip.id} className="p-2 border rounded-lg bg-green-50 dark:bg-green-950/20 text-sm">
+                      <p className="font-medium">{origin} → {selectedStop}</p>
+                      <p className="text-xs text-muted-foreground">{trip.buchungen} PAX</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Outgoing trips (automatically generated) */}
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">📤 Weiterfahrend (automatisch):</h4>
+                {(() => {
+                  // Group trips by destination
+                  const destinationMap = new Map<string, { totalPax: number; trips: string[] }>();
+                  
+                  // Add current group's destinations
+                  currentGroup.trips.forEach(trip => {
                     const destination = trip.reise.split(' - ')[0]?.trim() || trip.reise;
                     const pax = trip.buchungen || 0;
                     
@@ -256,29 +299,48 @@ export const HubDialog = ({
                     const info = destinationMap.get(destination)!;
                     info.totalPax += pax;
                     info.trips.push(trip.reisecode);
-                  }
-                });
+                  });
+                  
+                  // Add selected trips' destinations
+                  selectedTripIds.forEach(tripId => {
+                    const trip = candidateTrips.find(t => t.id === tripId);
+                    if (trip) {
+                      const destination = trip.reise.split(' - ')[0]?.trim() || trip.reise;
+                      const pax = trip.buchungen || 0;
+                      
+                      if (!destinationMap.has(destination)) {
+                        destinationMap.set(destination, { totalPax: 0, trips: [] });
+                      }
+                      
+                      const info = destinationMap.get(destination)!;
+                      info.totalPax += pax;
+                      info.trips.push(trip.reisecode);
+                    }
+                  });
 
-                return (
-                  <div className="space-y-2">
-                    {Array.from(destinationMap.entries()).map(([dest, info]) => (
-                      <div key={dest} className="p-3 border rounded-lg bg-orange-50 dark:bg-orange-950/20">
-                        <p className="font-medium">✅ {selectedStop} → {dest}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {info.totalPax} PAX • {info.trips.length} Reise(n)
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {info.trips.join(', ')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
+                  return (
+                    <>
+                      {Array.from(destinationMap.entries()).map(([dest, info]) => (
+                        <div key={dest} className="p-2 border rounded-lg bg-orange-50 dark:bg-orange-950/20 text-sm">
+                          <p className="font-medium">{selectedStop} → {dest}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {info.totalPax} PAX • {info.trips.length} Reise(n)
+                          </p>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg text-sm">
-              ℹ️ Es werden automatisch neue Gruppen für jedes Ziel erstellt
+            <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-lg text-sm">
+              <p className="font-semibold text-green-700 dark:text-green-300">
+                ✅ Optimale Auslastung durch Passagier-Umverteilung!
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Es werden automatisch neue Gruppen für jedes Ziel erstellt
+              </p>
             </div>
 
             <DialogFooter>
@@ -289,7 +351,7 @@ export const HubDialog = ({
                 onClick={handleCreateHub}
                 className="bg-orange-500 hover:bg-orange-600"
               >
-                🔄 Hub mit {selectedTripIds.length} Weiterfahrten erstellen
+                🔄 Hub mit {selectedTripIds.length + 1} Fahrten erstellen
               </Button>
             </DialogFooter>
           </div>
