@@ -64,17 +64,84 @@ export const HubDialog = ({
     }
   }, [open, currentGroup, allBusGroups]);
 
-  // Get stops for current trips
-  const currentTripStops = stops.filter(stop =>
-    currentGroup.trips.some(trip => trip.reisecode === stop.Reisecode)
-  );
-
-  // Get unique stop names (excluding first and last)
-  const uniqueStops = [...new Set(
-    currentTripStops
-      .map(s => s['Zustieg/Ausstieg'])
-      .filter(Boolean)
-  )].slice(1, -1); // Exclude first and last stops
+  // Find COMMON stops shared by multiple planned groups on same day
+  const getCommonStops = () => {
+    const date = currentGroup.trips[0]?.datum;
+    if (!date) return [];
+    
+    // Find all planned groups on same day (including current group)
+    const sameDayGroups = allBusGroups.filter(group => {
+      const groupTrips = group.id === currentGroup.id 
+        ? currentGroup.trips 
+        : allTrips.filter(t => t.groupId === group.id);
+      
+      return groupTrips.length > 0 && 
+             groupTrips[0].datum === date && 
+             group.status; // Must be planned
+    });
+    
+    console.log(`[HubDialog] 🔍 Found ${sameDayGroups.length} planned groups on ${date}`);
+    
+    if (sameDayGroups.length < 2) {
+      console.log('[HubDialog] ⚠️ Need at least 2 groups for hub');
+      return [];
+    }
+    
+    // Get stops for each group with start/end markers
+    const groupStopsData = sameDayGroups.map(group => {
+      const groupTrips = group.id === currentGroup.id 
+        ? currentGroup.trips 
+        : allTrips.filter(t => t.groupId === group.id);
+      
+      const firstTrip = groupTrips[0];
+      if (!firstTrip) return { groupId: group.id, stops: [], startStop: null, endStop: null };
+      
+      const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
+      const chronologicalStops = [...tripStops].sort((a, b) => {
+        const timeA = a.Zeit || '';
+        const timeB = b.Zeit || '';
+        return timeA.localeCompare(timeB);
+      });
+      
+      const stopNames = chronologicalStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean);
+      const startStop = stopNames[0];
+      const endStop = stopNames[stopNames.length - 1];
+      
+      return { 
+        groupId: group.id, 
+        stops: stopNames, 
+        startStop, 
+        endStop 
+      };
+    });
+    
+    // Find stops that appear in at least 2 groups
+    const stopCounts = new Map<string, number>();
+    const startEndStops = new Set<string>();
+    
+    groupStopsData.forEach(({ stops, startStop, endStop }) => {
+      // Track start/end stops to exclude them
+      if (startStop) startEndStops.add(startStop);
+      if (endStop) startEndStops.add(endStop);
+      
+      // Count occurrences of each stop
+      stops.forEach(stopName => {
+        stopCounts.set(stopName, (stopCounts.get(stopName) || 0) + 1);
+      });
+    });
+    
+    // Filter to stops appearing in at least 2 groups, excluding start/end points
+    const commonStops = Array.from(stopCounts.entries())
+      .filter(([stopName, count]) => count >= 2 && !startEndStops.has(stopName))
+      .map(([stopName]) => stopName);
+    
+    console.log(`[HubDialog] 🔍 Found ${commonStops.length} common stops (min 2 groups, excluding start/end)`);
+    console.log(`[HubDialog] 🔍 Common stops:`, commonStops);
+    
+    return commonStops;
+  };
+  
+  const uniqueStops = getCommonStops();
 
   const handleStopSelect = (stopName: string) => {
     setSelectedStop(stopName);
@@ -380,20 +447,31 @@ export const HubDialog = ({
         {step === 1 && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Wählen Sie eine Haltestelle als Umsteigepunkt:
+              Wählen Sie eine gemeinsame Haltestelle als Umsteigepunkt:
             </p>
-            <div className="space-y-2">
-              {uniqueStops.map(stop => (
-                <Button
-                  key={stop}
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => handleStopSelect(stop)}
-                >
-                  📍 {stop}
-                </Button>
-              ))}
-            </div>
+            {uniqueStops.length === 0 ? (
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-300 mb-2">
+                  ⚠️ Keine gemeinsamen Haltestellen gefunden
+                </p>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Für einen Hub werden mindestens 2 geplante Busgruppen am selben Tag benötigt, die eine gemeinsame Haltestelle haben (außer Start/Ziel).
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {uniqueStops.map(stop => (
+                  <Button
+                    key={stop}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => handleStopSelect(stop)}
+                  >
+                    📍 {stop}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
