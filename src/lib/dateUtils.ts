@@ -2,7 +2,8 @@ export function parseGermanDate(dateStr: string): Date {
   if (!dateStr) return new Date('9999-12-31');
   const parts = dateStr.split('.');
   if (parts.length !== 3) return new Date('9999-12-31');
-  return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  // Create date at noon to avoid timezone issues
+  return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 12, 0, 0);
 }
 
 export function formatDate(date: Date | string): string {
