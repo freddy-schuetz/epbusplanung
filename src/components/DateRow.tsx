@@ -3,8 +3,6 @@ import { ChevronDown } from 'lucide-react';
 import { GroupCard } from './GroupCard';
 import { TripCard } from './TripCard';
 import { DropZone } from './DropZone';
-import { TransferHubDialog } from './TransferHubDialog';
-import { Button } from './ui/button';
 import { Trip, Stop } from '@/types/bus';
 
 interface DateRowProps {
@@ -47,12 +45,6 @@ export const DateRow = ({
   onSplitGroup,
 }: DateRowProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [showTransferDialog, setShowTransferDialog] = useState(false);
-
-  const handleSaveTransferHub = (hubData: any) => {
-    console.log('Transfer Hub Data:', hubData);
-    // TODO: Save to database in next step
-  };
 
   // Sort trips by product code for better visual grouping
   const sortedHinfahrten = [...hinfahrten].sort((a, b) => {
@@ -102,15 +94,7 @@ export const DateRow = ({
       {isExpanded && (
         <>
           <div className="bg-primary/5 p-4 border-b-2 border-primary/20">
-            <div className="flex gap-3 mb-4">
-              <DropZone id={`dropzone-${date}`} label="🚌 Neue Busplanung erstellen" />
-              <Button 
-                onClick={() => setShowTransferDialog(true)}
-                className="bg-warning hover:bg-warning/90 text-warning-foreground whitespace-nowrap"
-              >
-                🔄 Transfer-Hub planen
-              </Button>
-            </div>
+            <DropZone id={`dropzone-${date}`} label="🚌 Neue Busplanung erstellen" />
             
             {plannedGroups.length > 0 && (
               <>
@@ -186,14 +170,6 @@ export const DateRow = ({
           </div>
         </>
       )}
-
-      <TransferHubDialog 
-        open={showTransferDialog}
-        onOpenChange={setShowTransferDialog}
-        onSave={handleSaveTransferHub}
-        availableTrips={[...hinfahrten, ...rueckfahrten]}
-        date={date}
-      />
     </div>
   );
 };
