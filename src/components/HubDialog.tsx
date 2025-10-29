@@ -33,6 +33,7 @@ export const HubDialog = ({
   const [selectedStop, setSelectedStop] = useState<string | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [candidateGroups, setCandidateGroups] = useState<BusGroup[]>([]);
+  const [collectorGroupId, setCollectorGroupId] = useState<string | null>(null);
 
   // Get stops for current trips
   const currentTripStops = stops.filter(stop =>
@@ -89,72 +90,37 @@ export const HubDialog = ({
   };
 
   const handleCreateHub = async () => {
-    if (!selectedStop) return;
+    if (!selectedStop || !collectorGroupId) return;
 
     const hubId = `hub-${selectedStop.toLowerCase().replace(/\s+/g, '-')}-${currentGroup.trips[0].datum}-${Date.now()}`;
     
     try {
-      // Mark current group as incoming
+      const allInvolvedGroupIds = [currentGroup.id, ...selectedGroupIds];
+      
+      // Mark collector group
       await supabase
         .from('bus_groups')
         .update({
-          hub_role: 'incoming',
+          hub_role: 'collector',
           hub_id: hubId,
           hub_location: selectedStop,
         })
-        .eq('id', currentGroup.id);
+        .eq('id', collectorGroupId);
 
-      // Mark selected groups as incoming
-      await supabase
-        .from('bus_groups')
-        .update({
-          hub_role: 'incoming',
-          hub_id: hubId,
-          hub_location: selectedStop,
-        })
-        .in('id', selectedGroupIds);
-
-      // Get all trips from current group and selected groups
-      const allIncomingTrips = [
-        ...currentGroup.trips,
-        ...allTrips.filter(t => selectedGroupIds.some(gid => t.groupId === gid))
-      ];
-
-      // Group by destination for outgoing trips
-      const tripsByDestination = new Map<string, Trip[]>();
-      allIncomingTrips.forEach(trip => {
-        const destination = trip.reise.split(' - ')[0]?.trim() || trip.reise;
-        const existing = tripsByDestination.get(destination) || [];
-        tripsByDestination.set(destination, [...existing, trip]);
-      });
-
-      // Create outgoing bus groups for each destination
-      for (const [destination, trips] of tripsByDestination.entries()) {
-        const { data: newGroup } = await supabase
+      // Mark non-collector groups as hub_start (they start at hub)
+      const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
+      if (nonCollectorIds.length > 0) {
+        await supabase
           .from('bus_groups')
-          .insert({
-            user_id: (await supabase.auth.getUser()).data.user!.id,
-            status: 'draft',
-            hub_role: 'outgoing',
+          .update({
+            hub_role: 'hub_start',
             hub_id: hubId,
             hub_location: selectedStop,
           })
-          .select()
-          .single();
-
-        if (newGroup) {
-          // Update trips to belong to new outgoing group
-          await supabase
-            .from('trips')
-            .update({
-              group_id: newGroup.id,
-              status: 'draft',
-            })
-            .in('id', trips.map(t => t.id));
-        }
+          .in('id', nonCollectorIds);
       }
 
-      toast.success(`Hub "${selectedStop}" erstellt mit ${selectedGroupIds.length + 1} eingehenden und ${tripsByDestination.size} ausgehenden Fahrten`);
+      toast.success(`Hub "${selectedStop}" erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
       onHubCreated();
       onClose();
       
@@ -164,8 +130,17 @@ export const HubDialog = ({
     }
   };
 
+  const handleClose = () => {
+    setStep(1);
+    setSelectedStop(null);
+    setSelectedGroupIds([]);
+    setCandidateGroups([]);
+    setCollectorGroupId(null);
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -282,119 +257,135 @@ export const HubDialog = ({
         {step === 3 && (
           <div className="space-y-4">
             <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 p-3 rounded-lg border border-purple-500/20">
-              <p className="font-semibold">🔄 Hub-Konfiguration</p>
-              <p className="text-sm">Hub-Standort: {selectedStop}</p>
-              <p className="text-sm">Datum: {currentGroup.trips[0].datum}</p>
+              <p className="font-semibold">🔄 Hub-Konfiguration - {selectedStop}</p>
+              <p className="text-sm text-muted-foreground">Datum: {currentGroup.trips[0].datum}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Incoming groups */}
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
-                  📥 Eingehende Busgruppen:
-                </h4>
-                
-                {/* Current group */}
-                {(() => {
-                  const totalPax = currentGroup.trips.reduce((sum, t) => sum + t.buchungen, 0);
-                  const firstTrip = currentGroup.trips[0];
-                  const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                  const origin = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Start';
-                  
-                  return (
-                    <div className="p-2 border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-sm">
-                      <Badge variant="outline" className="mb-1">Aktuelle Gruppe</Badge>
-                      <p className="font-medium">{origin} → {selectedStop}</p>
-                      <p className="text-xs text-muted-foreground">{totalPax} PAX</p>
-                    </div>
-                  );
-                })()}
-                
-                {/* Selected groups */}
-                {selectedGroupIds.map(groupId => {
-                  const group = candidateGroups.find(g => g.id === groupId);
-                  if (!group) return null;
-                  
-                  const groupTrips = allTrips.filter(t => t.groupId === group.id);
-                  const totalPax = groupTrips.reduce((sum, t) => sum + t.buchungen, 0);
-                  const firstTrip = groupTrips[0];
-                  const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                  const origin = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Start';
-                  
-                  return (
-                    <div key={group.id} className="p-2 border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 text-sm">
-                      <Badge variant="outline" className="mb-1">Fahrt {group.trip_number}</Badge>
-                      <p className="font-medium">{origin} → {selectedStop}</p>
-                      <p className="text-xs text-muted-foreground">{totalPax} PAX</p>
-                    </div>
-                  );
-                })}
-              </div>
+            {(() => {
+              // Get all groups involved (current + selected)
+              const allInvolvedGroupIds = [
+                currentGroup.id,
+                ...selectedGroupIds
+              ];
 
-              {/* Outgoing groups (automatically generated) */}
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                  📤 Ausgehende Busgruppen (automatisch):
-                </h4>
-                {(() => {
-                  // Get all incoming trips
-                  const allIncomingTrips = [
-                    ...currentGroup.trips,
-                    ...allTrips.filter(t => selectedGroupIds.some(gid => t.groupId === gid))
-                  ];
-                  
-                  // Group by destination
-                  const destinationMap = new Map<string, { totalPax: number; trips: string[] }>();
-                  
-                  allIncomingTrips.forEach(trip => {
-                    const destination = trip.reise.split(' - ')[0]?.trim() || trip.reise;
-                    const pax = trip.buchungen || 0;
-                    
-                    if (!destinationMap.has(destination)) {
-                      destinationMap.set(destination, { totalPax: 0, trips: [] });
-                    }
-                    
-                    const info = destinationMap.get(destination)!;
-                    info.totalPax += pax;
-                    info.trips.push(trip.reisecode);
-                  });
+              // Find common stops BEFORE hub
+              const getStopsBeforeHub = (groupId: string) => {
+                const groupTrips = groupId === currentGroup.id 
+                  ? currentGroup.trips 
+                  : allTrips.filter(t => t.groupId === groupId);
+                
+                if (groupTrips.length === 0) return [];
+                const firstTrip = groupTrips[0];
+                const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
+                const hubIndex = tripStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
+                if (hubIndex === -1) return [];
+                // Stops after hubIndex (because stops are in reverse order)
+                return tripStops.slice(hubIndex + 1).map(s => s['Zustieg/Ausstieg']).filter(Boolean);
+              };
 
-                  return (
-                    <>
-                      {Array.from(destinationMap.entries()).map(([dest, info]) => (
-                        <div key={dest} className="p-2 border rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 text-sm">
-                          <p className="font-medium">{selectedStop} → {dest}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {info.totalPax} PAX • {info.trips.length} Reise(n)
-                          </p>
+              const commonStopsBeforeHub = (() => {
+                const stopSets = allInvolvedGroupIds.map(id => new Set(getStopsBeforeHub(id)));
+                if (stopSets.length === 0) return [];
+                const firstSet = stopSets[0];
+                const common = Array.from(firstSet).filter(stop => 
+                  stopSets.every(set => set.has(stop))
+                );
+                return common;
+              })();
+
+              return (
+                <>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Wählen Sie den Sammelbus:</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Dieser Bus sammelt alle Passagiere von gemeinsamen Haltestellen vor {selectedStop}
+                    </p>
+
+                    {commonStopsBeforeHub.length > 0 && (
+                      <div className="bg-blue-500/10 p-2 rounded-lg border border-blue-500/20 text-xs">
+                        <p className="font-medium">📍 Gemeinsame Haltestellen vor Hub: {commonStopsBeforeHub.join(', ')}</p>
+                      </div>
+                    )}
+
+                    {allInvolvedGroupIds.map(groupId => {
+                      const groupTrips = groupId === currentGroup.id ? currentGroup.trips : allTrips.filter(t => t.groupId === groupId);
+                      const totalPax = groupTrips.reduce((sum, t) => sum + t.buchungen, 0);
+                      const firstTrip = groupTrips[0];
+                      const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
+                      const origin = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Start';
+                      const destination = tripStops[0]?.['Zustieg/Ausstieg'] || 'Ziel';
+                      
+                      const isCollector = collectorGroupId === groupId;
+                      const busGroup = allBusGroups.find(bg => bg.id === groupId);
+                      const tripNumber = busGroup?.trip_number || 'N/A';
+
+                      return (
+                        <div
+                          key={groupId}
+                          onClick={() => setCollectorGroupId(groupId)}
+                          className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                            isCollector 
+                              ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500' 
+                              : 'bg-muted/30 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-5 h-5 rounded-full border-2 mt-0.5 flex items-center justify-center ${
+                              isCollector ? 'border-purple-500 bg-purple-500' : 'border-muted-foreground'
+                            }`}>
+                              {isCollector && <div className="w-2 h-2 bg-white rounded-full" />}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="outline" className={isCollector ? 'bg-purple-500/20' : ''}>
+                                  Bus {tripNumber}
+                                </Badge>
+                                <p className="font-medium text-sm">{origin} → {destination}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {totalPax} PAX • {groupTrips.length} Reise{groupTrips.length !== 1 ? 'n' : ''}
+                              </p>
+                              {isCollector && (
+                                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                  ✅ Sammelt alle Passagiere {commonStopsBeforeHub.length > 0 ? `von ${commonStopsBeforeHub.join(', ')}` : 'vor Hub'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+                      );
+                    })}
+                  </div>
 
-            <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-3 rounded-lg border border-green-500/20 text-sm">
-              <p className="font-semibold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                ✅ Optimale Auslastung durch Passagier-Umverteilung!
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Alle Passagiere werden am Hub neu auf Zielbusse verteilt
-              </p>
-            </div>
+                  {collectorGroupId && (
+                    <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-3 rounded-lg border border-green-500/20 text-sm">
+                      <p className="font-semibold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        ✅ Passagier-Umverteilung konfiguriert
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Der gewählte Sammelbus holt alle Passagiere ab. Andere Busse starten am Hub.
+                      </p>
+                    </div>
+                  )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep(2)}>
-                Zurück
-              </Button>
-              <Button
-                onClick={handleCreateHub}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              >
-                🔄 Hub mit {selectedGroupIds.length + 1} eingehenden Gruppen erstellen
-              </Button>
-            </DialogFooter>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => {
+                      setCollectorGroupId(null);
+                      setStep(2);
+                    }}>
+                      Zurück
+                    </Button>
+                    <Button
+                      onClick={handleCreateHub}
+                      disabled={!collectorGroupId}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    >
+                      🔄 Hub erstellen
+                    </Button>
+                  </DialogFooter>
+                </>
+              );
+            })()}
           </div>
         )}
       </DialogContent>
