@@ -80,6 +80,15 @@ export const GroupCard = ({
   const calculateRoutes = () => {
     if (!hasHin && !hasRueck) return null;
 
+    // Helper to get destination with product codes
+    const getDestinationWithCodes = (trips: Trip[]) => {
+      const destination = extractDestination(trips[0].reise);
+      const productCodes = [...new Set(
+        trips.map(t => t.produktcode?.substring(0, 3).toUpperCase()).filter(Boolean)
+      )].join('/');
+      return `${destination} (${productCodes})`;
+    };
+
     // Build Hinfahrt route with all stops
     let hinRoute = null;
     if (hasHin) {
@@ -106,17 +115,13 @@ export const GroupCard = ({
       });
       
       // Get unique stop names in chronological order
-      const stopNames = sortedHinStops.map(s => s['Zustieg/Ausstieg']);
-      
-      // Get product codes (first 3 chars, e.g., DPW, DWW)
-      const productCodes = [...new Set(
-        hinTrips.map(t => t.produktcode?.substring(0, 3)).filter(Boolean)
-      )].join('/');
+      const stopNames = sortedHinStops.slice(0, -1).map(s => s['Zustieg/Ausstieg']);
+      const destination = getDestinationWithCodes(hinTrips);
       
       if (sortedHinStops.length > 0) {
         const firstTime = sortedHinStops[0].Zeit || '';
-        // Build route: "22:00 Köln → Frankfurt → Karlsruhe → DPW"
-        const routeParts = [...new Set(stopNames), productCodes];
+        // Build route: "22:00 Köln → Frankfurt → Karlsruhe → Davos (DPW/DWW)"
+        const routeParts = [...new Set(stopNames), destination];
         hinRoute = `↗ ${firstTime} ${routeParts.join(' → ')}`;
       }
     }
@@ -146,15 +151,11 @@ export const GroupCard = ({
       
       // Get unique stop names
       const stopNames = sortedRueckStops.map(s => s['Zustieg/Ausstieg']);
-      
-      // Get product codes
-      const productCodes = [...new Set(
-        rueckTrips.map(t => t.produktcode?.substring(0, 3)).filter(Boolean)
-      )].join('/');
+      const origin = getDestinationWithCodes(rueckTrips);
       
       if (sortedRueckStops.length > 0) {
-        // Build route: "DPW → Karlsruhe → Frankfurt → Köln"
-        const routeParts = [productCodes, ...new Set(stopNames)];
+        // Build route: "Davos (SSL/LPJ) → Karlsruhe → Frankfurt → Köln"
+        const routeParts = [origin, ...new Set(stopNames)];
         rueckRoute = `↘ ${routeParts.join(' → ')}`;
       }
     }
