@@ -233,115 +233,74 @@ export const GroupCard = ({
   }
 
 
-  // Get status icon
-  const getStatusIcon = () => {
-    switch (firstTrip.planningStatus) {
-      case 'draft': return '📝';
-      case 'completed': return '✅';
-      case 'locked': return '🔒';
-      default: return '📝';
-    }
-  };
-
-  // Compact route display
-  const compactRouteDisplay = () => {
-    const parts = [];
-    
-    if (routeDisplays?.hin) {
-      const hinStops = stops.filter(stop => 
-        hinTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-        stop.Zeit && stop.Zeit.trim() !== ''
-      ).sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
-      
-      const firstStop = hinStops[0];
-      const destination = extractDestination(hinTrips[0].reise);
-      if (firstStop) {
-        parts.push(`↗ ${firstStop.Zeit} ${firstStop['Zustieg/Ausstieg']} → ${destination}`);
-      }
-    }
-    
-    if (routeDisplays?.rueck) {
-      const rueckStops = stops.filter(stop => 
-        rueckTrips.some(trip => trip.reisecode === stop.Reisecode) &&
-        stop.Zeit && stop.Zeit.trim() !== ''
-      ).sort((a, b) => (a.Zeit || '').localeCompare(b.Zeit || ''));
-      
-      const origin = extractDestination(rueckTrips[0].reise);
-      const lastStop = rueckStops[rueckStops.length - 1];
-      if (lastStop) {
-        parts.push(`↘ ${origin} → ${lastStop['Zustieg/Ausstieg']}`);
-      }
-    }
-    
-    return parts.join(' | ');
-  };
-
   return (
-    <div className={`border rounded-lg overflow-hidden mb-2 ${
-      isStandbus ? 'bg-orange-50 border-orange-300' : 'bg-card border-border'
+    <div className={`border-2 rounded-lg overflow-hidden mb-3 shadow-sm ${
+      isStandbus ? 'bg-orange-50 border-orange-300' : 'bg-card border-primary/30'
     }`}>
       <div
-        className={`flex items-center gap-3 p-2 cursor-pointer hover:bg-muted/50 transition-colors ${
-          isStandbus ? 'bg-orange-100' : ''
+        className={`text-white p-4 flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity ${
+          isStandbus ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'gradient-primary'
         }`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {/* Trip number with bus icon */}
-        {busGroup?.trip_number && (
-          <span className="flex items-center gap-1 font-bold text-sm">
-            🚌 {busGroup.trip_number}
-          </span>
-        )}
-        
-        {/* Split badge if applicable */}
-        {isSplitGroup && (
-          <Badge variant="outline" className="text-xs">
-            {busGroup.part_number}/{busGroup.total_parts}
-          </Badge>
-        )}
-        
-        {/* Standbus indicator */}
-        {isStandbus && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <span className="text-orange-600">🅿️</span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Standbus ({standbusDays} Tage)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        
-        {/* Routes compressed */}
-        <div className="flex-1 flex items-center gap-2 text-sm truncate">
-          {compactRouteDisplay()}
+        <div className="flex items-center gap-3">
+          {busGroup?.trip_number && (
+            <span className="bg-white/30 px-3 py-1 rounded font-bold">
+              Fahrt-Nr: {busGroup.trip_number}
+            </span>
+          )}
+          {isSplitGroup && (
+            <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
+              Teil {busGroup.part_number}/{busGroup.total_parts}
+            </Badge>
+          )}
+          {isStandbus && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold">
+                    {displayMode === 'return' ? '🅿️ STANDBUS ← RÜCKFAHRT' : '🅿️ STANDBUS → HINFAHRT'}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bus bleibt {standbusDays} Tage vor Ort</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {routeDisplays && (
+            <div className="flex flex-col gap-1">
+              {routeDisplays.hin && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.hin}
+                </span>
+              )}
+              {routeDisplays.rueck && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.rueck}
+                </span>
+              )}
+            </div>
+          )}
+          <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
         </div>
-        
-        {/* PAX info compact */}
-        <div className="flex gap-3 text-sm font-medium">
-          {hinPax > 0 && <span>H:{hinPax}</span>}
-          {rueckPax > 0 && <span>R:{rueckPax}</span>}
+        <div className="flex items-center gap-4">
+          {hinPax > 0 && rueckPax > 0 ? (
+            <>
+              <span className="text-sm">HIN: {hinPax} PAX</span>
+              <span className="text-sm">RÜCK: {rueckPax} PAX</span>
+            </>
+          ) : hinPax > 0 ? (
+            <span className="text-sm">{hinPax} PAX</span>
+          ) : (
+            <span className="text-sm">{rueckPax} PAX</span>
+          )}
+          {busInfo && <span className="text-sm">{busInfo}</span>}
+          <div className="flex items-center gap-2">
+            <StatusBadge status={firstTrip.planningStatus} />
+          </div>
+          <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
-        
-        {/* Bus name compact */}
-        {busInfo && <span className="text-sm">{busInfo}</span>}
-        
-        {/* Status icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger>
-              <span className="text-lg">{getStatusIcon()}</span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{firstTrip.planningStatus === 'draft' ? 'Entwurf' : firstTrip.planningStatus === 'completed' ? 'Abgeschlossen' : 'Gesperrt'}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        
-        {/* Expand chevron */}
-        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </div>
       
       {isExpanded && (
