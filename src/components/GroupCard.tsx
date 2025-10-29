@@ -452,6 +452,8 @@ export const GroupCard = ({
                 <Button
                   onClick={async () => {
                     try {
+                      console.log('[GroupCard] 🔍 Deleting hub:', busGroup.hub_id);
+                      
                       // Remove hub from all groups with the same hub_id
                       const { error } = await supabase
                         .from('bus_groups')
@@ -466,7 +468,11 @@ export const GroupCard = ({
                         toast.error('Fehler beim Löschen: ' + error.message);
                       } else {
                         toast.success('Hub erfolgreich gelöscht');
-                        onHubCreated(); // Refresh data
+                        
+                        // Simple reload after hub deletion
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 500);
                       }
                     } catch (err) {
                       console.error('Hub removal error:', err);

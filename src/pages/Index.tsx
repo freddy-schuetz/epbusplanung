@@ -113,6 +113,17 @@ const Index = () => {
       const data = await fetchTrips(user.id);
       const busGroupsData = await fetchBusGroups(user.id);
       
+      console.log('[Index] 🔍 DEBUG: Fetched bus groups:', busGroupsData.length);
+      
+      // Log each group's hub info and stops
+      busGroupsData.forEach(bg => {
+        console.log(`[Index] 🔍 Group ${bg.trip_number}:`, {
+          hub_role: bg.hub_role,
+          hub_location: bg.hub_location,
+          hub_id: bg.hub_id,
+        });
+      });
+      
       // Store bus groups in state for Hub dialog (with proper typing)
       setBusGroups(busGroupsData.map(bg => ({
         ...bg,
@@ -136,21 +147,25 @@ const Index = () => {
       );
       
       // Map trips
-      const mappedTrips = data.map((dbTrip: any) => ({
-        id: dbTrip.id,
-        direction: dbTrip.direction as 'hin' | 'rueck',
-        reisecode: dbTrip.reisecode,
-        produktcode: dbTrip.produktcode || '',
-        reise: dbTrip.reise,
-        datum: dbTrip.datum,
-        uhrzeit: dbTrip.uhrzeit || '',
-        kontingent: dbTrip.kontingent || 0,
-        buchungen: dbTrip.buchungen || 0,
-        planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
-        groupId: dbTrip.group_id,
-        busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
-        storedStops: dbTrip.stops || null, // Store for later use
-      }));
+      const mappedTrips = data.map((dbTrip: any) => {
+        console.log(`[Index] 🔍 Trip ${dbTrip.reisecode} stops from DB:`, dbTrip.stops);
+        
+        return {
+          id: dbTrip.id,
+          direction: dbTrip.direction as 'hin' | 'rueck',
+          reisecode: dbTrip.reisecode,
+          produktcode: dbTrip.produktcode || '',
+          reise: dbTrip.reise,
+          datum: dbTrip.datum,
+          uhrzeit: dbTrip.uhrzeit || '',
+          kontingent: dbTrip.kontingent || 0,
+          buchungen: dbTrip.buchungen || 0,
+          planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
+          groupId: dbTrip.group_id,
+          busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
+          storedStops: dbTrip.stops || null, // Store for later use
+        };
+      });
       
       // Merge stops data from database for planned trips
       mappedTrips.forEach((trip: any) => {

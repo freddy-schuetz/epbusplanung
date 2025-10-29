@@ -274,10 +274,10 @@ export const HubDialog = ({
       // Success - update local state via callback
       toast.success(`Hub "${selectedStop}" erfolgreich erstellt - Haltestellen aktualisiert`);
       
-      // Call the callback to refresh data
-      if (onHubCreated) {
-        await onHubCreated();
-      }
+      // Simple reload after hub creation
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
       
       // Close dialog
       handleClose();
