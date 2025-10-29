@@ -964,7 +964,7 @@ const Index = () => {
       dateKey,
       plannedGroups: sortGroupsWithSplits(plannedGroupsByDate[dateKey] || []),
       hinfahrten: hinfahrtenByDate[dateKey] || [],
-      rueckfahrten: rueckfahrtenByDate[addDays(dateKey, 1)] || [],
+      rueckfahrten: rueckfahrtenByDate[dateKey] || [],
     }));
   };
 
