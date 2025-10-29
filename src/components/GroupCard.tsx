@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
@@ -232,117 +233,74 @@ export const GroupCard = ({
   }
 
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'draft': return '📝';
-      case 'completed': return '✅';
-      case 'locked': return '🔒';
-      default: return '❓';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'draft': return 'Entwurf';
-      case 'completed': return 'Fertig';
-      case 'locked': return 'Gesperrt';
-      default: return 'Ungeplant';
-    }
-  };
-
   return (
-    <div className={`border rounded-lg overflow-hidden mb-2 shadow-sm hover:shadow-md transition-shadow ${
-      isStandbus ? 'bg-orange-50/50 border-orange-300' : 'bg-card border-border'
+    <div className={`border-2 rounded-lg overflow-hidden mb-3 shadow-sm ${
+      isStandbus ? 'bg-orange-50 border-orange-300' : 'bg-card border-primary/30'
     }`}>
       <div
-        className="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
+        className={`text-white p-4 flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity ${
+          isStandbus ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'gradient-primary'
+        }`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {/* Trip number with icon */}
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-lg">🚌</span>
+        <div className="flex items-center gap-3">
           {busGroup?.trip_number && (
-            <span className="font-bold text-sm">{busGroup.trip_number}</span>
+            <span className="bg-white/30 px-3 py-1 rounded font-bold">
+              Fahrt-Nr: {busGroup.trip_number}
+            </span>
           )}
+          {isSplitGroup && (
+            <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
+              Teil {busGroup.part_number}/{busGroup.total_parts}
+            </Badge>
+          )}
+          {isStandbus && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold">
+                    {displayMode === 'return' ? '🅿️ STANDBUS ← RÜCKFAHRT' : '🅿️ STANDBUS → HINFAHRT'}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Bus bleibt {standbusDays} Tage vor Ort</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {routeDisplays && (
+            <div className="flex flex-col gap-1">
+              {routeDisplays.hin && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.hin}
+                </span>
+              )}
+              {routeDisplays.rueck && (
+                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
+                  {routeDisplays.rueck}
+                </span>
+              )}
+            </div>
+          )}
+          <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
         </div>
-
-        {/* Split indicator */}
-        {isSplitGroup && (
-          <Badge variant="secondary" className="text-xs shrink-0">
-            Teil {busGroup.part_number}/{busGroup.total_parts}
-          </Badge>
-        )}
-
-        {/* Standbus indicator */}
-        {isStandbus && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="text-xs shrink-0 border-orange-500 text-orange-600">
-                  🅿️
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Standbus ({standbusDays} Tage)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Routes - inline display */}
-        {routeDisplays && (
-          <div className="flex-1 flex items-center gap-2 text-xs overflow-hidden">
-            {routeDisplays.hin && (
-              <span className="inline-flex items-center gap-1 shrink-0">
-                {routeDisplays.hin}
-              </span>
-            )}
-            {routeDisplays.hin && routeDisplays.rueck && (
-              <span className="text-muted-foreground">|</span>
-            )}
-            {routeDisplays.rueck && (
-              <span className="inline-flex items-center gap-1 shrink-0">
-                {routeDisplays.rueck}
-              </span>
-            )}
+        <div className="flex items-center gap-4">
+          {hinPax > 0 && rueckPax > 0 ? (
+            <>
+              <span className="text-sm">HIN: {hinPax} PAX</span>
+              <span className="text-sm">RÜCK: {rueckPax} PAX</span>
+            </>
+          ) : hinPax > 0 ? (
+            <span className="text-sm">{hinPax} PAX</span>
+          ) : (
+            <span className="text-sm">{rueckPax} PAX</span>
+          )}
+          {busInfo && <span className="text-sm">{busInfo}</span>}
+          <div className="flex items-center gap-2">
+            <StatusBadge status={firstTrip.planningStatus} />
           </div>
-        )}
-
-        {/* PAX compact */}
-        <div className="flex items-center gap-2 text-xs shrink-0">
-          {hinPax > 0 && (
-            <span className="font-medium">↗{hinPax}</span>
-          )}
-          {rueckPax > 0 && (
-            <span className="font-medium">↘{rueckPax}</span>
-          )}
+          <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
-
-        {/* Bus name */}
-        {busInfo && (
-          <Badge variant="outline" className="text-xs shrink-0">
-            {busInfo}
-          </Badge>
-        )}
-
-        {/* Status icon */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="text-lg shrink-0 cursor-pointer">
-                {getStatusIcon(firstTrip.planningStatus)}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{getStatusText(firstTrip.planningStatus)}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Expand chevron */}
-        <ChevronDown 
-          className={`w-4 h-4 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-        />
       </div>
       
       {isExpanded && (
