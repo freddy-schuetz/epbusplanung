@@ -45,7 +45,7 @@ export const GroupForm = ({
   console.log('[GroupForm] 🔄 Component rendered with refreshKey:', refreshKey);
   console.log('[GroupForm] 🔍 Received stops count:', stops.length);
   const firstTrip = trips[0];
-  const isLocked = firstTrip.planningStatus === 'locked' || firstTrip.planningStatus === 'completed';
+  const isLocked = firstTrip.planningStatus === 'locked';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
 
   // Check for Standbus (bus stays on-site)
@@ -461,27 +461,27 @@ export const GroupForm = ({
         </div>
       </div>
 
-      {!isLocked ? (
-        <div className="flex gap-3 flex-wrap">
-          <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
-            💾 Speichern
+      <div className="flex gap-3 flex-wrap">
+        <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
+          💾 Speichern
+        </Button>
+        {firstTrip.planningStatus === 'completed' ? (
+          <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+            ↩️ Zurück auf Entwurf
           </Button>
-          {firstTrip.planningStatus === 'completed' ? (
-            <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
-              ↩️ Zurück auf Entwurf
-            </Button>
-          ) : (
-            <Button onClick={handleComplete} className="gradient-primary">
-              ✅ Fertigstellen
-            </Button>
-          )}
-          <Button onClick={handleDissolve} variant="destructive">
-            ❌ Auflösen
+        ) : (
+          <Button onClick={handleComplete} className="gradient-primary">
+            ✅ Fertigstellen
           </Button>
-        </div>
-      ) : (
+        )}
+        <Button onClick={handleDissolve} variant="destructive">
+          ❌ Auflösen
+        </Button>
+      </div>
+      
+      {isLocked && (
         <Alert>
-          <AlertDescription>🔒 Diese Busplanung ist gesperrt.</AlertDescription>
+          <AlertDescription>🔒 Diese Busplanung ist gesperrt (nur bei Status 'locked').</AlertDescription>
         </Alert>
       )}
 
