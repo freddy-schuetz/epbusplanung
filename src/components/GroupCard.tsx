@@ -17,6 +17,7 @@ interface GroupCardProps {
   allTrips: Trip[];
   allBusGroups: BusGroup[];
   displayMode?: 'departure' | 'return';
+  refreshKey?: number;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -34,6 +35,7 @@ export const GroupCard = ({
   allTrips,
   allBusGroups,
   displayMode = 'departure',
+  refreshKey = 0,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
@@ -507,9 +509,11 @@ export const GroupCard = ({
           )}
           
           <GroupForm
+            key={`form-${groupId}-${refreshKey}`}
             groupId={groupId}
             trips={trips}
             stops={stops}
+            refreshKey={refreshKey}
             onUpdateGroup={onUpdateGroup}
             onCompleteGroup={onCompleteGroup}
             onSetGroupToDraft={onSetGroupToDraft}

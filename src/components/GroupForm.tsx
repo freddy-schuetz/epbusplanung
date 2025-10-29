@@ -23,6 +23,7 @@ interface GroupFormProps {
   groupId: string;
   trips: Trip[];
   stops: Stop[];
+  refreshKey?: number;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -34,12 +35,15 @@ export const GroupForm = ({
   groupId,
   trips,
   stops,
+  refreshKey = 0,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
   onDissolveGroup,
   onSplitGroup,
 }: GroupFormProps) => {
+  console.log('[GroupForm] 🔄 Component rendered with refreshKey:', refreshKey);
+  console.log('[GroupForm] 🔍 Received stops count:', stops.length);
   const firstTrip = trips[0];
   const isLocked = firstTrip.planningStatus === 'locked' || firstTrip.planningStatus === 'completed';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
@@ -88,6 +92,13 @@ export const GroupForm = ({
       setBusDetails(firstTrip.busDetails);
     }
   }, [firstTrip.busDetails]);
+
+  // Force re-processing when stops change or refreshKey changes
+  useEffect(() => {
+    console.log('[GroupForm] 🔄 Stops or refreshKey changed - forcing re-render');
+    console.log('[GroupForm] 🔍 New stops count:', stops.length);
+    console.log('[GroupForm] 🔍 New refreshKey:', refreshKey);
+  }, [stops, refreshKey]);
 
   const handleSave = () => {
     onUpdateGroup(groupId, { busDetails });
@@ -147,6 +158,7 @@ export const GroupForm = ({
   });
   console.log('[GroupForm] Total PAX from trips:', trips.reduce((sum, t) => sum + t.buchungen, 0));
   console.log('[GroupForm] All stops count:', stops.length);
+  console.log('[GroupForm] 🔍 Sample stop structure:', stops.length > 0 ? stops[0] : 'No stops');
   
   // Aggregate stops for this group - match by reisecode AND direction
   let groupStops = stops.filter(stop => 
@@ -162,6 +174,12 @@ export const GroupForm = ({
   
   // Debug: Log filtered stops with their trip IDs
   console.log('[GroupForm] Filtered group stops:', groupStops.length);
+  console.log('[GroupForm] 🔍 First 3 filtered stops:', groupStops.slice(0, 3).map(s => ({
+    location: s['Zustieg/Ausstieg'],
+    time: s.Zeit,
+    pax: s.Anzahl,
+    reisecode: s.Reisecode,
+  })));
   const stopsByReisecode = groupStops.reduce((acc, stop) => {
     acc[stop.Reisecode] = (acc[stop.Reisecode] || 0) + (stop.Anzahl || 0);
     return acc;

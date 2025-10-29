@@ -313,10 +313,37 @@ export const HubDialog = ({
       }
 
       // Success - update local state via callback
+      console.log('[HubDialog] ✅ Hub creation complete - verifying database updates...');
+      
+      // Verify database updates
+      for (const gId of allInvolvedGroupIds) {
+        const groupTrips = gId === currentGroup.id 
+          ? currentGroup.trips 
+          : allTrips.filter(t => t.groupId === gId);
+        
+        for (const trip of groupTrips) {
+          const { data: verifyTrip } = await supabase
+            .from('trips')
+            .select('stops, reisecode')
+            .eq('id', trip.id)
+            .single();
+          
+          if (verifyTrip) {
+            const stopsArray = Array.isArray(verifyTrip.stops) ? verifyTrip.stops : [];
+            console.log(`[HubDialog] ✅ VERIFY: ${verifyTrip.reisecode} has ${stopsArray.length} stops in DB`);
+            if (stopsArray.length > 0) {
+              const firstStop = stopsArray[0] as any;
+              console.log(`[HubDialog] ✅ VERIFY: First stop: "${firstStop['Zustieg/Ausstieg']}" with ${firstStop.Anzahl} PAX`);
+            }
+          }
+        }
+      }
+      
       toast.success(`Hub "${selectedStop}" erfolgreich erstellt - Haltestellen aktualisiert`);
       
       // Trigger parent refresh to update stops
       if (onHubCreated) {
+        console.log('[HubDialog] 🔄 Triggering parent refresh...');
         await onHubCreated();
       }
       
