@@ -221,19 +221,28 @@ const Index = () => {
 
       if (result.success && result.data) {
         // Create a Set of planned trip keys for efficient lookup
+        // Format: "REISECODE-HIN" or "REISECODE-RUECK" to match tripKey format below
         const plannedReisecodes = new Set(
-          plannedTrips.map(t => t.reisecode)
+          plannedTrips.map(t => `${t.reisecode}-${t.direction === 'hin' ? 'HIN' : 'RUECK'}`)
         );
+        
+        console.log('[Index] 🔍 Planned trip keys:', Array.from(plannedReisecodes));
         
         // Merge API stops with existing DB stops - don't overwrite planned trip stops
         setStops(prevStops => {
           const apiStops = result.data.stops;
           
+          // Helper to generate trip key from stop
+          const getStopTripKey = (stop: Stop) => {
+            const direction = stop.Beförderung?.toLowerCase().includes('hinfahrt') ? 'HIN' : 'RUECK';
+            return `${stop.Reisecode}-${direction}`;
+          };
+          
           // Keep existing stops for planned trips (from database with hub modifications)
-          const plannedStops = prevStops.filter(s => plannedReisecodes.has(s.Reisecode));
+          const plannedStops = prevStops.filter(s => plannedReisecodes.has(getStopTripKey(s)));
           
           // Only add API stops for unplanned trips
-          const unplannedStops = apiStops.filter(s => !plannedReisecodes.has(s.Reisecode));
+          const unplannedStops = apiStops.filter(s => !plannedReisecodes.has(getStopTripKey(s)));
           
           console.log(`[Index] 🔄 Merging stops: ${plannedStops.length} from DB (planned) + ${unplannedStops.length} from API (unplanned) = ${plannedStops.length + unplannedStops.length} total`);
           
