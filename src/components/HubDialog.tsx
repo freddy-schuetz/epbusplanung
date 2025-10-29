@@ -125,8 +125,8 @@ export const HubDialog = ({
       }
 
       toast.success(`Hub "${selectedStop}" erfolgreich erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
-      onHubCreated();
       handleClose();
+      window.location.reload();
       
     } catch (error) {
       console.error('Error creating hub:', error);
@@ -337,7 +337,14 @@ export const HubDialog = ({
                         const timeB = b.Zeit || '';
                         return timeA.localeCompare(timeB);
                       });
-                      const origin = chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+                      
+                      // Get first stop before hub as origin
+                      const stopsBeforeHub = getStopsBeforeHub(groupId);
+                      const origin = stopsBeforeHub.length > 0 
+                        ? stopsBeforeHub[0] 
+                        : chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+                      
+                      // Get final destination (last stop in chronological order)
                       const destination = chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
                       
                       const isCollector = collectorGroupId === groupId;
