@@ -141,14 +141,19 @@ export const GroupCard = ({
         return timeA.localeCompare(timeB);
       });
       
-      // Get unique stop names in chronological order
-      const stopNames = [...new Set(sortedHinStops.slice(0, -1).map(s => s['Zustieg/Ausstieg']))];
+      // Get unique stop names in chronological order (ALL stops, not excluding any)
+      const stopNames = [...new Set(sortedHinStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
       const destination = getDestinationWithCodes(hinTrips);
       
       if (sortedHinStops.length > 0) {
         const firstTime = sortedHinStops[0].Zeit || '';
         const firstStop = stopNames[0];
-        const middleStops = stopNames.slice(1);
+        // Show all stops except first (already shown with time) and last (if it matches destination)
+        const lastStopMatchesDestination = stopNames[stopNames.length - 1] && 
+          destination.startsWith(stopNames[stopNames.length - 1]);
+        const middleStops = lastStopMatchesDestination 
+          ? stopNames.slice(1, -1) 
+          : stopNames.slice(1);
         
         hinRoute = (
           <>
@@ -190,14 +195,17 @@ export const GroupCard = ({
         return timeA.localeCompare(timeB);
       });
       
-      // Get unique stop names
-      const stopNames = [...new Set(sortedRueckStops.map(s => s['Zustieg/Ausstieg']))];
+      // Get unique stop names (ALL stops)
+      const stopNames = [...new Set(sortedRueckStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
       const origin = getDestinationWithCodes(rueckTrips);
       
       if (sortedRueckStops.length > 0) {
         const firstStop = origin;
-        const middleStops = stopNames.slice(0, -1);
-        const lastStop = stopNames[stopNames.length - 1];
+        // Check if first stopName matches origin to avoid duplication
+        const firstStopMatchesOrigin = stopNames[0] && origin.startsWith(stopNames[0]);
+        const adjustedStopNames = firstStopMatchesOrigin ? stopNames.slice(1) : stopNames;
+        const middleStops = adjustedStopNames.slice(0, -1);
+        const lastStop = adjustedStopNames[adjustedStopNames.length - 1];
         
         rueckRoute = (
           <>
@@ -209,8 +217,12 @@ export const GroupCard = ({
                 <span className="text-sm font-normal opacity-80">{stop}</span>
               </span>
             ))}
-            <span> → </span>
-            <span className="font-bold">{lastStop}</span>
+            {lastStop && (
+              <>
+                <span> → </span>
+                <span className="font-bold">{lastStop}</span>
+              </>
+            )}
           </>
         );
       }
