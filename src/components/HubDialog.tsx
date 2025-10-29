@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,34 @@ export const HubDialog = ({
   const [candidateGroups, setCandidateGroups] = useState<BusGroup[]>([]);
   const [collectorGroupId, setCollectorGroupId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill dialog if editing existing hub
+  useEffect(() => {
+    if (open && currentGroup) {
+      // Find bus group for current group
+      const busGroup = allBusGroups.find(bg => bg.id === currentGroup.id);
+      
+      if (busGroup?.hub_role && busGroup.hub_id && busGroup.hub_location) {
+        // Editing existing hub - pre-fill data
+        setSelectedStop(busGroup.hub_location);
+        
+        // Find all groups in this hub
+        const hubGroups = allBusGroups.filter(bg => bg.hub_id === busGroup.hub_id);
+        const otherHubGroupIds = hubGroups
+          .filter(bg => bg.id !== currentGroup.id)
+          .map(bg => bg.id);
+        
+        setSelectedGroupIds(otherHubGroupIds);
+        
+        // Find the collector
+        const collector = hubGroups.find(bg => bg.hub_role === 'incoming');
+        if (collector) {
+          setCollectorGroupId(collector.id);
+          setStep(3); // Jump to final step for editing
+        }
+      }
+    }
+  }, [open, currentGroup, allBusGroups]);
 
   // Get stops for current trips
   const currentTripStops = stops.filter(stop =>
@@ -98,7 +126,117 @@ export const HubDialog = ({
       setLoading(true);
       const allInvolvedGroupIds = [currentGroup.id, ...selectedGroupIds];
       
-      // Update collector group
+      // Helper to get stops before hub for a group
+      const getStopsBeforeHubForGroup = (groupId: string) => {
+        const groupTrips = groupId === currentGroup.id 
+          ? currentGroup.trips 
+          : allTrips.filter(t => t.groupId === groupId);
+        
+        if (groupTrips.length === 0) return [];
+        const firstTrip = groupTrips[0];
+        const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
+        
+        // Sort by time
+        const chronologicalStops = [...tripStops].sort((a, b) => {
+          const timeA = a.Zeit || '';
+          const timeB = b.Zeit || '';
+          return timeA.localeCompare(timeB);
+        });
+        
+        const hubIndex = chronologicalStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
+        if (hubIndex === -1) return [];
+        
+        return chronologicalStops.slice(0, hubIndex);
+      };
+
+      // 1. Calculate combined passenger counts at stops before hub
+      const totalPassengersBeforeHub: { [stopName: string]: number } = {};
+      
+      for (const gId of allInvolvedGroupIds) {
+        const stopsBeforeHub = getStopsBeforeHubForGroup(gId);
+        stopsBeforeHub.forEach(stop => {
+          const stopName = stop['Zustieg/Ausstieg'];
+          if (stopName) {
+            if (!totalPassengersBeforeHub[stopName]) {
+              totalPassengersBeforeHub[stopName] = 0;
+            }
+            totalPassengersBeforeHub[stopName] += stop.Anzahl || 0;
+          }
+        });
+      }
+
+      // 2. Update collector group's trips with combined passengers
+      const collectorGroupTrips = collectorGroupId === currentGroup.id 
+        ? currentGroup.trips 
+        : allTrips.filter(t => t.groupId === collectorGroupId);
+      
+      for (const trip of collectorGroupTrips) {
+        const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
+        const chronologicalStops = [...tripStops].sort((a, b) => {
+          const timeA = a.Zeit || '';
+          const timeB = b.Zeit || '';
+          return timeA.localeCompare(timeB);
+        });
+        
+        // Update passenger counts for stops before hub
+        const updatedStops = chronologicalStops.map(stop => {
+          const stopName = stop['Zustieg/Ausstieg'];
+          if (stopName && totalPassengersBeforeHub[stopName]) {
+            return { ...stop, Anzahl: totalPassengersBeforeHub[stopName] };
+          }
+          return stop;
+        });
+        
+        // Save updated stops to database
+        const { error: tripUpdateError } = await supabase
+          .from('trips')
+          .update({ stops: updatedStops as any })
+          .eq('id', trip.id);
+          
+        if (tripUpdateError) {
+          console.error('Failed to update trip stops:', tripUpdateError);
+          toast.error('Fehler beim Aktualisieren der Haltestellen');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 3. Update non-collector groups - remove stops before hub
+      const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
+      for (const gId of nonCollectorIds) {
+        const groupTrips = gId === currentGroup.id 
+          ? currentGroup.trips 
+          : allTrips.filter(t => t.groupId === gId);
+        
+        for (const trip of groupTrips) {
+          const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
+          const chronologicalStops = [...tripStops].sort((a, b) => {
+            const timeA = a.Zeit || '';
+            const timeB = b.Zeit || '';
+            return timeA.localeCompare(timeB);
+          });
+          
+          const hubIndex = chronologicalStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
+          if (hubIndex !== -1) {
+            // Keep only stops from hub onwards
+            const newStops = chronologicalStops.slice(hubIndex);
+            
+            const { error: tripUpdateError } = await supabase
+              .from('trips')
+              .update({ stops: newStops as any })
+              .eq('id', trip.id);
+              
+            if (tripUpdateError) {
+              console.error('Failed to update trip stops:', tripUpdateError);
+              toast.error('Fehler beim Aktualisieren der Haltestellen');
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // 4. Update hub_role markers on bus_groups
       const { error: collectorError } = await supabase
         .from('bus_groups')
         .update({
@@ -115,8 +253,6 @@ export const HubDialog = ({
         return;
       }
 
-      // Update non-collector groups as outgoing (they start at hub)
-      const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       if (nonCollectorIds.length > 0) {
         const { error: hubStartError } = await supabase
           .from('bus_groups')
@@ -136,7 +272,7 @@ export const HubDialog = ({
       }
 
       // Success - update local state via callback
-      toast.success(`Hub "${selectedStop}" erfolgreich erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
+      toast.success(`Hub "${selectedStop}" erfolgreich erstellt - Haltestellen aktualisiert`);
       
       // Call the callback to refresh data
       if (onHubCreated) {
@@ -149,6 +285,7 @@ export const HubDialog = ({
     } catch (error) {
       console.error('Error creating hub:', error);
       toast.error('Fehler beim Erstellen des Hubs');
+    } finally {
       setLoading(false);
     }
   };

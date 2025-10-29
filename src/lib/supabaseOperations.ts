@@ -32,7 +32,7 @@ export const fetchTrips = async (userId: string) => {
   return data as unknown as Trip[];
 };
 
-export const createTrips = async (trips: Partial<Trip>[], userId: string) => {
+export const createTrips = async (trips: Partial<Trip>[], userId: string, stopsData?: any[]) => {
   const tripsToInsert = trips.map(trip => ({
     user_id: userId,
     reisecode: trip.reisecode,
@@ -45,6 +45,9 @@ export const createTrips = async (trips: Partial<Trip>[], userId: string) => {
     produktcode: trip.produktcode || '',
     reise: trip.reise || '',
     kontingent: trip.kontingent || 0,
+    stops: stopsData 
+      ? (stopsData.filter(s => s.Reisecode === trip.reisecode) as any)
+      : null,
   }));
 
   const { data, error } = await supabase

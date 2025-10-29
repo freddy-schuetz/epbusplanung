@@ -506,6 +506,7 @@ export type Database = {
           reise: string
           reisecode: string
           status: string
+          stops: Json | null
           uhrzeit: string | null
           updated_at: string | null
           user_id: string
@@ -522,6 +523,7 @@ export type Database = {
           reise: string
           reisecode: string
           status?: string
+          stops?: Json | null
           uhrzeit?: string | null
           updated_at?: string | null
           user_id: string
@@ -538,6 +540,7 @@ export type Database = {
           reise?: string
           reisecode?: string
           status?: string
+          stops?: Json | null
           uhrzeit?: string | null
           updated_at?: string | null
           user_id?: string

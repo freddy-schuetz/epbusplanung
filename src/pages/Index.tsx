@@ -135,7 +135,8 @@ const Index = () => {
         ])
       );
       
-      return data.map((dbTrip: any) => ({
+      // Map trips
+      const mappedTrips = data.map((dbTrip: any) => ({
         id: dbTrip.id,
         direction: dbTrip.direction as 'hin' | 'rueck',
         reisecode: dbTrip.reisecode,
@@ -148,7 +149,21 @@ const Index = () => {
         planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
         groupId: dbTrip.group_id,
         busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
+        storedStops: dbTrip.stops || null, // Store for later use
       }));
+      
+      // Merge stops data from database for planned trips
+      mappedTrips.forEach((trip: any) => {
+        if (trip.storedStops && Array.isArray(trip.storedStops) && trip.storedStops.length > 0) {
+          // Replace stops for this trip with database version
+          setStops(prevStops => {
+            const updatedStops = prevStops.filter(s => s.Reisecode !== trip.reisecode);
+            return [...updatedStops, ...trip.storedStops];
+          });
+        }
+      });
+      
+      return mappedTrips.map(({ storedStops, ...trip }) => trip);
     } catch (error) {
       console.error('[Index] Error loading planned trips:', error);
       return [];
@@ -412,7 +427,7 @@ const Index = () => {
         tripNumber: null, // trip_number is only in bus_groups
       }));
       
-      await createTrips(tripsToCreate, user.id);
+      await createTrips(tripsToCreate, user.id, stops);
       
       setSelectedTrips(new Set());
       setNextGroupId(nextGroupId + 1);
@@ -533,7 +548,7 @@ const Index = () => {
           groupId: newGroupId,
         }));
         
-        await createTrips(tripsToInsert, user.id);
+        await createTrips(tripsToInsert, user.id, stops);
         console.log(`[Index] Created ${tripsToInsert.length} trips for group ${tripNumber}`);
       }
       
