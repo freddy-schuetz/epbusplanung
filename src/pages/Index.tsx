@@ -169,20 +169,31 @@ const Index = () => {
       
       // Merge stops data from database for planned trips
       console.log('[Index] 🔍 Merging stops from database...');
+      const newStops: Stop[] = [];
+      
       mappedTrips.forEach((trip: any) => {
         if (trip.storedStops && Array.isArray(trip.storedStops) && trip.storedStops.length > 0) {
-          console.log(`[Index] 🔍 Replacing stops for ${trip.reisecode} with ${trip.storedStops.length} stops from DB`);
+          console.log(`[Index] 🔍 Adding ${trip.storedStops.length} stops from DB for ${trip.reisecode}`);
           console.log(`[Index] 🔍 First stop: "${trip.storedStops[0]?.['Zustieg/Ausstieg']}" with ${trip.storedStops[0]?.Anzahl} PAX`);
           
-          // Replace stops for this trip with database version
-          setStops(prevStops => {
-            const updatedStops = prevStops.filter(s => s.Reisecode !== trip.reisecode);
-            return [...updatedStops, ...trip.storedStops];
-          });
+          // Add these stops to our collection
+          newStops.push(...trip.storedStops);
         } else {
           console.log(`[Index] 🔍 No stored stops found for ${trip.reisecode}`);
         }
       });
+      
+      // Update stops array in one operation - replace stops for planned trips, keep API stops for unplanned
+      if (newStops.length > 0) {
+        setStops(prevStops => {
+          // Get reisecodes from mapped trips
+          const plannedReisecodes = new Set(mappedTrips.map((t: any) => t.reisecode));
+          // Keep only unplanned trip stops, add all planned trip stops from DB
+          const unplannedStops = prevStops.filter(s => !plannedReisecodes.has(s.Reisecode));
+          console.log(`[Index] ✅ Updating stops: ${unplannedStops.length} unplanned + ${newStops.length} planned = ${unplannedStops.length + newStops.length} total`);
+          return [...unplannedStops, ...newStops];
+        });
+      }
       
       return mappedTrips.map(({ storedStops, ...trip }) => trip);
     } catch (error) {

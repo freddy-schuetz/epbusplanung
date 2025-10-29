@@ -469,10 +469,10 @@ export const GroupCard = ({
                       } else {
                         toast.success('Hub erfolgreich gelöscht');
                         
-                        // Simple reload after hub deletion
-                        setTimeout(() => {
-                          window.location.reload();
-                        }, 500);
+                        // Trigger parent refresh to update stops
+                        if (onHubCreated) {
+                          await onHubCreated();
+                        }
                       }
                     } catch (err) {
                       console.error('Hub removal error:', err);
