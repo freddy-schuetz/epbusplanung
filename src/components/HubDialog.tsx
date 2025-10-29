@@ -103,7 +103,7 @@ export const HubDialog = ({
       const { error: collectorError } = await supabase
         .from('bus_groups')
         .update({
-          hub_role: 'collector' as 'collector' | 'hub_start',
+          hub_role: 'incoming' as 'incoming' | 'outgoing',
           hub_id: hubId,
           hub_location: selectedStop,
         })
@@ -116,13 +116,13 @@ export const HubDialog = ({
         return;
       }
 
-      // Update non-collector groups as hub_start (they start at hub)
+      // Update non-collector groups as outgoing (they start at hub)
       const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       if (nonCollectorIds.length > 0) {
         const { error: hubStartError } = await supabase
           .from('bus_groups')
           .update({
-            hub_role: 'hub_start' as 'collector' | 'hub_start',
+            hub_role: 'outgoing' as 'incoming' | 'outgoing',
             hub_id: hubId,
             hub_location: selectedStop,
           })
