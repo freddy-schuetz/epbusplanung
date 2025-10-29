@@ -201,11 +201,16 @@ export const HubDialog = ({
                   const groupTrips = allTrips.filter(t => t.groupId === group.id);
                   if (groupTrips.length === 0) return null;
                   
-                  // Get first and last stop for route display
+                  // Get first and last stop for route display - sort by time
                   const firstTrip = groupTrips[0];
                   const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                  const origin = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Start';
-                  const destination = tripStops[0]?.['Zustieg/Ausstieg'] || 'Ziel';
+                  const chronologicalStops = [...tripStops].sort((a, b) => {
+                    const timeA = a.Zeit || '';
+                    const timeB = b.Zeit || '';
+                    return timeA.localeCompare(timeB);
+                  });
+                  const origin = chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+                  const destination = chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
                   const totalPax = groupTrips.reduce((sum, t) => sum + t.buchungen, 0);
                   
                   return (
@@ -272,7 +277,7 @@ export const HubDialog = ({
                 ...selectedGroupIds
               ];
 
-              // Find common stops BEFORE hub (chronologically)
+              // Find common stops BEFORE hub (chronologically sorted by time)
               const getStopsBeforeHub = (groupId: string) => {
                 const groupTrips = groupId === currentGroup.id 
                   ? currentGroup.trips 
@@ -282,8 +287,13 @@ export const HubDialog = ({
                 const firstTrip = groupTrips[0];
                 const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
                 
-                // Stops are in reverse chronological order, so reverse them first
-                const chronologicalStops = [...tripStops].reverse();
+                // Sort stops by Zeit (time) to get correct chronological order
+                const chronologicalStops = [...tripStops].sort((a, b) => {
+                  const timeA = a.Zeit || '';
+                  const timeB = b.Zeit || '';
+                  return timeA.localeCompare(timeB);
+                });
+                
                 const hubIndex = chronologicalStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
                 if (hubIndex === -1) return [];
                 
@@ -321,8 +331,12 @@ export const HubDialog = ({
                       const firstTrip = groupTrips[0];
                       const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
                       
-                      // FIX: Sort stops chronologically (they're in reverse order)
-                      const chronologicalStops = [...tripStops].reverse();
+                      // Sort stops by Zeit (time) to get correct chronological order
+                      const chronologicalStops = [...tripStops].sort((a, b) => {
+                        const timeA = a.Zeit || '';
+                        const timeB = b.Zeit || '';
+                        return timeA.localeCompare(timeB);
+                      });
                       const origin = chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
                       const destination = chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
                       
