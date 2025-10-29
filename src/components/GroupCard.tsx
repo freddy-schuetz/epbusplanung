@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from './StatusBadge';
@@ -37,7 +37,6 @@ export const GroupCard = ({
   onSplitGroup,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showStops, setShowStops] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
@@ -319,59 +318,11 @@ export const GroupCard = ({
           )}
           {busInfo && <span className="text-sm">{busInfo}</span>}
           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowStops(!showStops);
-              }}
-              className="text-white hover:bg-white/20"
-            >
-              {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              Haltestellen
-            </Button>
             {renderActions()}
           </div>
           <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
-      
-      {showStops && (
-        <div className="bg-card p-4 border-b border-border">
-          <h4 className="font-semibold mb-2">Haltestellen:</h4>
-          <div className="space-y-1">
-            {stops
-              .filter(stop => trips.some(trip => trip.reisecode === stop.Reisecode))
-              .sort((a, b) => {
-                // Sort by time, handling overnight trips
-                const timeA = a.Zeit || 'Zeit folgt';
-                const timeB = b.Zeit || 'Zeit folgt';
-                
-                if (timeA === 'Zeit folgt') return 1;
-                if (timeB === 'Zeit folgt') return -1;
-                
-                const [hoursA] = timeA.split(':').map(Number);
-                const [hoursB] = timeB.split(':').map(Number);
-                
-                const dayA = hoursA < 6 ? 1 : 0;
-                const dayB = hoursB < 6 ? 1 : 0;
-                
-                if (dayA !== dayB) return dayA - dayB;
-                return timeA.localeCompare(timeB);
-              })
-              .map((stop, idx) => (
-                <div key={idx} className="text-sm flex items-center gap-2 py-1">
-                  <span className="text-muted-foreground">🚏</span>
-                  <span className="font-medium">{stop.Zeit || 'Zeit folgt'}</span>
-                  <span>{stop['Zustieg/Ausstieg']}</span>
-                  <span className="text-muted-foreground">-</span>
-                  <span className="font-semibold">{stop.Anzahl || 0} PAX</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
       
       {isExpanded && (
         <div className="bg-muted/30 p-5 space-y-4">
