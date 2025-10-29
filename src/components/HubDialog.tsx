@@ -100,7 +100,7 @@ export const HubDialog = ({
       const allInvolvedGroupIds = [currentGroup.id, ...selectedGroupIds];
       
       // Update collector group
-      await supabase
+      const { error: collectorError } = await supabase
         .from('bus_groups')
         .update({
           hub_role: 'collector' as 'collector' | 'hub_start',
@@ -109,10 +109,17 @@ export const HubDialog = ({
         })
         .eq('id', collectorGroupId);
 
+      if (collectorError) {
+        console.error('Collector update failed:', collectorError);
+        toast.error('Fehler beim Aktualisieren des Sammelbusses: ' + collectorError.message);
+        setLoading(false);
+        return;
+      }
+
       // Update non-collector groups as hub_start (they start at hub)
       const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       if (nonCollectorIds.length > 0) {
-        await supabase
+        const { error: hubStartError } = await supabase
           .from('bus_groups')
           .update({
             hub_role: 'hub_start' as 'collector' | 'hub_start',
@@ -120,11 +127,25 @@ export const HubDialog = ({
             hub_location: selectedStop,
           })
           .in('id', nonCollectorIds);
+
+        if (hubStartError) {
+          console.error('Hub start update failed:', hubStartError);
+          toast.error('Fehler beim Aktualisieren der Hub-Busse: ' + hubStartError.message);
+          setLoading(false);
+          return;
+        }
       }
 
+      // Success - update local state via callback
       toast.success(`Hub "${selectedStop}" erfolgreich erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
+      
+      // Call the callback to refresh data
+      if (onHubCreated) {
+        await onHubCreated();
+      }
+      
+      // Close dialog
       handleClose();
-      setTimeout(() => window.location.reload(), 100);
       
     } catch (error) {
       console.error('Error creating hub:', error);
