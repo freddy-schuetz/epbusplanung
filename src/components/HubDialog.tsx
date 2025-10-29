@@ -328,17 +328,18 @@ export const HubDialog = ({
             const newStops = chronologicalStops.slice(hubIndex);
             
             // Calculate passengers TRANSFERRING TO this outgoing bus:
-            // Sum passengers from OTHER groups (not this group) at stops before hub
-            let transferredPassengers = 0;
-            for (const otherGroupId of allInvolvedGroupIds) {
-              if (otherGroupId === gId) continue; // Skip own group to avoid double-counting
-              
-              const stopsBeforeHub = getStopsBeforeHubForGroup(otherGroupId);
-              const totalFromOtherGroup = stopsBeforeHub.reduce((sum, stop) => sum + (stop.Anzahl || 0), 0);
-              transferredPassengers += totalFromOtherGroup;
-              
-              console.log(`[HubDialog] 🔍 OUTGOING ${trip.reisecode}: Receiving ${totalFromOtherGroup} PAX from group ${otherGroupId}`);
-            }
+            // This is THIS GROUP'S OWN passengers from stops before hub
+            // (they board the collector, then transfer back to this bus at the hub)
+            const stopsBeforeHubForThisGroup = getStopsBeforeHubForGroup(gId);
+            const transferredPassengers = stopsBeforeHubForThisGroup.reduce(
+              (sum, stop) => sum + (stop.Anzahl || 0), 
+              0
+            );
+            
+            console.log(`[HubDialog] 🔍 OUTGOING ${trip.reisecode}: Own passengers from stops before hub: ${transferredPassengers} PAX`);
+            stopsBeforeHubForThisGroup.forEach(stop => {
+              console.log(`  - ${stop['Zustieg/Ausstieg']}: ${stop.Anzahl} PAX`);
+            });
             
             // Calculate own passengers at and after hub (already on this bus)
             const ownPassengersAtAndAfterHub = chronologicalStops
