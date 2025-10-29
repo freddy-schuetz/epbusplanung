@@ -181,9 +181,12 @@ export const HubDialog = ({
             </p>
 
             {candidateTrips.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">
-                Keine passenden Fahrten gefunden
-              </p>
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg">
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  ⚠️ Keine anderen Fahrten mit Halt in {selectedStop} gefunden.
+                  Hub nicht möglich.
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {candidateTrips.map(trip => (
@@ -214,9 +217,15 @@ export const HubDialog = ({
                 onClick={() => setStep(3)}
                 disabled={selectedTripIds.length === 0}
               >
-                Weiter ({selectedTripIds.length} Fahrten)
+                Weiter ({selectedTripIds.length} {selectedTripIds.length === 1 ? 'Fahrt' : 'Fahrten'} ausgewählt)
               </Button>
             </DialogFooter>
+            
+            {selectedTripIds.length === 0 && candidateTrips.length > 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Mindestens 1 Fahrt auswählen um Hub zu erstellen
+              </p>
+            )}
           </div>
         )}
 

@@ -261,6 +261,35 @@ export const GroupCard = ({
   );
   const uniqueStopCount = new Set(tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)).size;
 
+  // Check if hub creation is possible (other trips share stops with this group)
+  const canCreateHub = () => {
+    if (!tripStops || tripStops.length < 3) return false;
+    if (busGroup?.hub_role) return false; // Already part of a hub
+    if (firstTrip.planningStatus !== 'completed') return false;
+    
+    const currentDate = trips[0]?.datum;
+    if (!currentDate) return false;
+    
+    // Get unique stop names from current group (excluding first and last)
+    const myStopNames = [...new Set(
+      tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)
+    )].slice(1, -1);
+    
+    if (myStopNames.length === 0) return false;
+    
+    // Check if any other unplanned trip on same date shares any of these stops
+    const hasCommonStops = allTrips.some(trip => {
+      if (trip.planningStatus !== 'unplanned') return false;
+      if (trip.datum !== currentDate) return false;
+      if (trips.some(t => t.id === trip.id)) return false; // Skip current group's trips
+      
+      const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
+      return tripStops.some(s => myStopNames.includes(s['Zustieg/Ausstieg']));
+    });
+    
+    return hasCommonStops;
+  };
+
 
   return (
     <div className={`border-2 rounded-lg overflow-hidden mb-3 shadow-sm ${
@@ -389,8 +418,8 @@ export const GroupCard = ({
       
       {isExpanded && (
         <div className="bg-muted/30 p-5 space-y-4">
-          {/* Hub button - only for trips with 3+ stops and no hub role */}
-          {uniqueStopCount >= 3 && !busGroup?.hub_role && firstTrip.planningStatus === 'completed' && (
+          {/* Hub button - only shown when other trips can meet at common stops */}
+          {canCreateHub() && (
             <Button
               onClick={() => setShowHubDialog(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white w-full"
