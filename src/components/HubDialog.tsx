@@ -61,8 +61,7 @@ export const HubDialog = ({
       // Must be planned (has status)
       if (!group.status) return false;
       
-      // Must not already be part of a hub
-      if (group.hub_role) return false;
+      // Allow groups that are already in hub (to show existing state)
       
       // Check if any trip in this group passes through the hub stop on same date
       const groupTrips = allTrips.filter(t => t.groupId === group.id);
@@ -248,6 +247,11 @@ export const HubDialog = ({
                             Fahrt {group.trip_number || 'N/A'}
                           </Badge>
                           <p className="font-medium">{origin} → {destination}</p>
+                          {group.hub_role && (
+                            <span className="ml-2 text-xs text-orange-600 dark:text-orange-400">
+                              (bereits im Hub)
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {totalPax} PAX • {groupTrips.length} Reise{groupTrips.length !== 1 ? 'n' : ''}

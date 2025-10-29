@@ -8,6 +8,7 @@ import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 interface GroupCardProps {
   groupId: string;
@@ -266,7 +267,7 @@ export const GroupCard = ({
   // Check if hub creation is possible (other trips share stops with this group)
   const canCreateHub = () => {
     if (!tripStops || tripStops.length < 3) return false;
-    if (busGroup?.hub_role) return false; // Already part of a hub
+    // Allow hub button even if already has hub (to edit/remove)
     if (firstTrip.planningStatus === 'unplanned') return false; // Must be planned (draft/completed/locked)
     
     const currentDate = trips[0]?.datum;
@@ -438,13 +439,48 @@ export const GroupCard = ({
         <div className="bg-muted/30 p-5 space-y-4">
           {/* Hub button - only shown when other trips can meet at common stops */}
           {canCreateHub() && (
-            <Button
-              onClick={() => setShowHubDialog(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white w-full"
-              size="sm"
-            >
-              🔄 Hub definieren
-            </Button>
+            <div className="space-y-2">
+              <Button
+                onClick={() => setShowHubDialog(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white w-full"
+                size="sm"
+              >
+                {busGroup?.hub_role ? '🔄 Hub bearbeiten' : '🔄 Hub definieren'}
+              </Button>
+              
+              {busGroup?.hub_role && busGroup?.hub_id && (
+                <Button
+                  onClick={async () => {
+                    try {
+                      // Remove hub from all groups with the same hub_id
+                      const { error } = await supabase
+                        .from('bus_groups')
+                        .update({
+                          hub_role: null,
+                          hub_id: null,
+                          hub_location: null,
+                        })
+                        .eq('hub_id', busGroup.hub_id);
+                      
+                      if (error) {
+                        toast.error('Fehler beim Löschen: ' + error.message);
+                      } else {
+                        toast.success('Hub erfolgreich gelöscht');
+                        onHubCreated(); // Refresh data
+                      }
+                    } catch (err) {
+                      console.error('Hub removal error:', err);
+                      toast.error('Fehler beim Löschen des Hubs');
+                    }
+                  }}
+                  variant="outline"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full border-red-300"
+                  size="sm"
+                >
+                  🗑️ Hub löschen
+                </Button>
+              )}
+            </div>
           )}
           
           {isSplitGroup && linkedGroups.length > 0 && (
