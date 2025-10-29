@@ -64,7 +64,7 @@ export const HubDialog = ({
     }
   }, [open, currentGroup, allBusGroups]);
 
-  // Find COMMON stops shared by multiple planned groups on same day
+  // Find COMMON stops that appear in ALL planned groups on same day
   const getCommonStops = () => {
     const date = currentGroup.trips[0]?.datum;
     if (!date) return [];
@@ -87,14 +87,14 @@ export const HubDialog = ({
       return [];
     }
     
-    // Get stops for each group with start/end markers
+    // Get stops for EACH group with start/end markers
     const groupStopsData = sameDayGroups.map(group => {
       const groupTrips = group.id === currentGroup.id 
         ? currentGroup.trips 
         : allTrips.filter(t => t.groupId === group.id);
       
       const firstTrip = groupTrips[0];
-      if (!firstTrip) return { groupId: group.id, stops: [], startStop: null, endStop: null };
+      if (!firstTrip) return { groupId: group.id, tripNumber: '', allStops: [], firstStop: null, lastStop: null };
       
       const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
       const chronologicalStops = [...tripStops].sort((a, b) => {
@@ -104,39 +104,39 @@ export const HubDialog = ({
       });
       
       const stopNames = chronologicalStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean);
-      const startStop = stopNames[0];
-      const endStop = stopNames[stopNames.length - 1];
+      const firstStop = stopNames[0];
+      const lastStop = stopNames[stopNames.length - 1];
+      
+      console.log(`[HubDialog] 🔍 Group ${group.trip_number || group.id}: ${stopNames.join(' → ')}`);
       
       return { 
-        groupId: group.id, 
-        stops: stopNames, 
-        startStop, 
-        endStop 
+        groupId: group.id,
+        tripNumber: group.trip_number,
+        allStops: stopNames, 
+        firstStop, 
+        lastStop 
       };
     });
     
-    // Find stops that appear in at least 2 groups
-    const stopCounts = new Map<string, number>();
-    const startEndStops = new Set<string>();
+    // Find INTERSECTION - stops that appear in ALL groups
+    if (groupStopsData.length === 0) return [];
     
-    groupStopsData.forEach(({ stops, startStop, endStop }) => {
-      // Track start/end stops to exclude them
-      if (startStop) startEndStops.add(startStop);
-      if (endStop) startEndStops.add(endStop);
+    const firstGroupStops = new Set(groupStopsData[0].allStops);
+    
+    // Keep only stops that appear in EVERY group
+    const commonStops = [...firstGroupStops].filter(stopName => {
+      // Must be in every single group
+      const inAllGroups = groupStopsData.every(g => g.allStops.includes(stopName));
       
-      // Count occurrences of each stop
-      stops.forEach(stopName => {
-        stopCounts.set(stopName, (stopCounts.get(stopName) || 0) + 1);
-      });
+      // Must not be a start or end point of any group
+      const isStartOrEnd = groupStopsData.some(g => 
+        g.firstStop === stopName || g.lastStop === stopName
+      );
+      
+      return inAllGroups && !isStartOrEnd;
     });
     
-    // Filter to stops appearing in at least 2 groups, excluding start/end points
-    const commonStops = Array.from(stopCounts.entries())
-      .filter(([stopName, count]) => count >= 2 && !startEndStops.has(stopName))
-      .map(([stopName]) => stopName);
-    
-    console.log(`[HubDialog] 🔍 Found ${commonStops.length} common stops (min 2 groups, excluding start/end)`);
-    console.log(`[HubDialog] 🔍 Common stops:`, commonStops);
+    console.log('[HubDialog] 🔍 Common stops (in ALL groups, not start/end):', commonStops);
     
     return commonStops;
   };
