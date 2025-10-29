@@ -382,7 +382,6 @@ export const GroupForm = ({
               <SelectItem value="ohne">ohne</SelectItem>
               <SelectItem value="Koffer">Koffer</SelectItem>
               <SelectItem value="Anhänger">Anhänger</SelectItem>
-              <SelectItem value="Koffer + Anhänger">Koffer + Anhänger</SelectItem>
             </SelectContent>
           </Select>
         </div>
