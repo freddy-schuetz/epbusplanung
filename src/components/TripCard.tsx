@@ -73,16 +73,6 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   // Get the actual first departure time from sorted stops
   const departureTime = tripStops.length > 0 ? tripStops[0]?.Zeit : trip.uhrzeit;
 
-  // Debug: Check if return trips have stops
-  if (trip.direction === 'rueck' && tripStops.length === 0) {
-    console.log('[TripCard] Return trip has no stops:', {
-      reisecode: trip.reisecode,
-      direction: trip.direction,
-      totalStops: stops?.length || 0,
-      filteredStops: filteredStops.length
-    });
-  }
-
   return (
     <div
       ref={setNodeRef}
@@ -109,17 +99,15 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
         <span className="text-primary font-semibold shrink-0">{trip.reisecode}</span>
         <span className="font-semibold shrink-0">{trip.buchungen} PAX</span>
         <span className="text-muted-foreground shrink-0">Kont: {trip.kontingent}</span>
-        {tripStops.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowStops(!showStops);
-            }}
-            className="p-1 hover:bg-accent rounded transition-colors shrink-0"
-          >
-            {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
-        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowStops(!showStops);
+          }}
+          className="p-1 hover:bg-accent rounded transition-colors shrink-0"
+        >
+          {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
       </div>
       
       {showStops && tripStops.length > 0 && (
