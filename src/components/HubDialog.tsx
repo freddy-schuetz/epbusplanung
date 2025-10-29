@@ -97,32 +97,36 @@ export const HubDialog = ({
     try {
       const allInvolvedGroupIds = [currentGroup.id, ...selectedGroupIds];
       
-      // Mark collector group
-      await supabase
+      // Update collector group
+      const { error: collectorError } = await supabase
         .from('bus_groups')
         .update({
-          hub_role: 'collector',
+          hub_role: 'collector' as 'collector' | 'hub_start',
           hub_id: hubId,
           hub_location: selectedStop,
         })
         .eq('id', collectorGroupId);
 
-      // Mark non-collector groups as hub_start (they start at hub)
+      if (collectorError) throw collectorError;
+
+      // Update non-collector groups as hub_start (they start at hub)
       const nonCollectorIds = allInvolvedGroupIds.filter(id => id !== collectorGroupId);
       if (nonCollectorIds.length > 0) {
-        await supabase
+        const { error: hubStartError } = await supabase
           .from('bus_groups')
           .update({
-            hub_role: 'hub_start',
+            hub_role: 'hub_start' as 'collector' | 'hub_start',
             hub_id: hubId,
             hub_location: selectedStop,
           })
           .in('id', nonCollectorIds);
+
+        if (hubStartError) throw hubStartError;
       }
 
-      toast.success(`Hub "${selectedStop}" erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
+      toast.success(`Hub "${selectedStop}" erfolgreich erstellt mit ${allInvolvedGroupIds.length} Busgruppen`);
       onHubCreated();
-      onClose();
+      handleClose();
       
     } catch (error) {
       console.error('Error creating hub:', error);
@@ -268,7 +272,7 @@ export const HubDialog = ({
                 ...selectedGroupIds
               ];
 
-              // Find common stops BEFORE hub
+              // Find common stops BEFORE hub (chronologically)
               const getStopsBeforeHub = (groupId: string) => {
                 const groupTrips = groupId === currentGroup.id 
                   ? currentGroup.trips 
@@ -277,10 +281,14 @@ export const HubDialog = ({
                 if (groupTrips.length === 0) return [];
                 const firstTrip = groupTrips[0];
                 const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                const hubIndex = tripStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
+                
+                // Stops are in reverse chronological order, so reverse them first
+                const chronologicalStops = [...tripStops].reverse();
+                const hubIndex = chronologicalStops.findIndex(s => s['Zustieg/Ausstieg'] === selectedStop);
                 if (hubIndex === -1) return [];
-                // Stops after hubIndex (because stops are in reverse order)
-                return tripStops.slice(hubIndex + 1).map(s => s['Zustieg/Ausstieg']).filter(Boolean);
+                
+                // Return only stops BEFORE hub (chronologically)
+                return chronologicalStops.slice(0, hubIndex).map(s => s['Zustieg/Ausstieg']).filter(Boolean);
               };
 
               const commonStopsBeforeHub = (() => {
@@ -312,8 +320,11 @@ export const HubDialog = ({
                       const totalPax = groupTrips.reduce((sum, t) => sum + t.buchungen, 0);
                       const firstTrip = groupTrips[0];
                       const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-                      const origin = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Start';
-                      const destination = tripStops[0]?.['Zustieg/Ausstieg'] || 'Ziel';
+                      
+                      // FIX: Sort stops chronologically (they're in reverse order)
+                      const chronologicalStops = [...tripStops].reverse();
+                      const origin = chronologicalStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+                      const destination = chronologicalStops[chronologicalStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
                       
                       const isCollector = collectorGroupId === groupId;
                       const busGroup = allBusGroups.find(bg => bg.id === groupId);
