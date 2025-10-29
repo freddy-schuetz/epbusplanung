@@ -220,12 +220,25 @@ const Index = () => {
       const result: APIResponse = await response.json();
 
       if (result.success && result.data) {
-        setStops(result.data.stops);
-        
         // Create a Set of planned trip keys for efficient lookup
         const plannedReisecodes = new Set(
-          plannedTrips.map(t => `${t.reisecode}-${t.direction.toUpperCase()}`)
+          plannedTrips.map(t => t.reisecode)
         );
+        
+        // Merge API stops with existing DB stops - don't overwrite planned trip stops
+        setStops(prevStops => {
+          const apiStops = result.data.stops;
+          
+          // Keep existing stops for planned trips (from database with hub modifications)
+          const plannedStops = prevStops.filter(s => plannedReisecodes.has(s.Reisecode));
+          
+          // Only add API stops for unplanned trips
+          const unplannedStops = apiStops.filter(s => !plannedReisecodes.has(s.Reisecode));
+          
+          console.log(`[Index] 🔄 Merging stops: ${plannedStops.length} from DB (planned) + ${unplannedStops.length} from API (unplanned) = ${plannedStops.length + unplannedStops.length} total`);
+          
+          return [...plannedStops, ...unplannedStops];
+        });
         
         const unplannedTrips: Trip[] = [];
         
