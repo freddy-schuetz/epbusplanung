@@ -265,22 +265,24 @@ export const GroupCard = ({
   const canCreateHub = () => {
     if (!tripStops || tripStops.length < 3) return false;
     if (busGroup?.hub_role) return false; // Already part of a hub
-    if (firstTrip.planningStatus !== 'completed') return false;
+    if (firstTrip.planningStatus === 'unplanned') return false; // Must be planned (draft/completed/locked)
     
     const currentDate = trips[0]?.datum;
     if (!currentDate) return false;
     
-    // Get unique stop names from current group (excluding first and last)
+    // Get ALL stop names from current group (not excluding first/last for more matches)
     const myStopNames = [...new Set(
       tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)
-    )].slice(1, -1);
+    )];
     
     if (myStopNames.length === 0) return false;
     
-    // Check if any OTHER COMPLETED trip on same date shares any of these stops
+    console.log('[GroupCard] Checking hub possibility for trip', trips[0].reisecode, 'with stops:', myStopNames);
+    
+    // Check if any OTHER PLANNED trip on same date shares any stops
     const hasCommonStops = allTrips.some(trip => {
-      // Must be completed (not unplanned/draft/locked)
-      if (trip.planningStatus !== 'completed') return false;
+      // Must be planned (not unplanned)
+      if (trip.planningStatus === 'unplanned') return false;
       // Must be on same date
       if (trip.datum !== currentDate) return false;
       // Skip current group's trips
@@ -288,15 +290,19 @@ export const GroupCard = ({
       
       // Check if this trip has any common stops
       const otherTripStops = stops.filter(s => s.Reisecode === trip.reisecode);
-      const hasCommon = otherTripStops.some(s => myStopNames.includes(s['Zustieg/Ausstieg']));
+      const otherStopNames = [...new Set(otherTripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
+      
+      const hasCommon = myStopNames.some(myStop => otherStopNames.includes(myStop));
       
       if (hasCommon) {
-        console.log('[GroupCard] Found common stop between', trips[0].reisecode, 'and', trip.reisecode);
+        const commonStops = myStopNames.filter(s => otherStopNames.includes(s));
+        console.log('[GroupCard] ✅ Found common stops between', trips[0].reisecode, 'and', trip.reisecode, ':', commonStops);
       }
       
       return hasCommon;
     });
     
+    console.log('[GroupCard] Hub possible for', trips[0].reisecode, ':', hasCommonStops);
     return hasCommonStops;
   };
 
