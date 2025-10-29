@@ -223,14 +223,54 @@ export const HubDialog = ({
         {step === 3 && (
           <div className="space-y-4">
             <div className="bg-muted p-3 rounded-lg">
-              <p className="font-semibold">Zusammenfassung</p>
+              <p className="font-semibold">🔄 Hub-Konfiguration</p>
               <p className="text-sm">Hub-Standort: {selectedStop}</p>
-              <p className="text-sm">Ausgewählte Fahrten: {selectedTripIds.length}</p>
+              <p className="text-sm">Datum: {currentGroup.trips[0].datum}</p>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Es werden automatisch neue Gruppen für jedes Ziel erstellt.
-            </p>
+            <div className="space-y-3">
+              <p className="font-semibold text-sm">Automatische Weiterfahrten von {selectedStop}:</p>
+              {(() => {
+                // Group trips by destination
+                const destinationMap = new Map<string, { totalPax: number; trips: string[] }>();
+                
+                selectedTripIds.forEach(tripId => {
+                  const trip = candidateTrips.find(t => t.id === tripId);
+                  if (trip) {
+                    const destination = trip.reise.split(' - ')[0]?.trim() || trip.reise;
+                    const pax = trip.buchungen || 0;
+                    
+                    if (!destinationMap.has(destination)) {
+                      destinationMap.set(destination, { totalPax: 0, trips: [] });
+                    }
+                    
+                    const info = destinationMap.get(destination)!;
+                    info.totalPax += pax;
+                    info.trips.push(trip.reisecode);
+                  }
+                });
+
+                return (
+                  <div className="space-y-2">
+                    {Array.from(destinationMap.entries()).map(([dest, info]) => (
+                      <div key={dest} className="p-3 border rounded-lg bg-orange-50 dark:bg-orange-950/20">
+                        <p className="font-medium">✅ {selectedStop} → {dest}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {info.totalPax} PAX • {info.trips.length} Reise(n)
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {info.trips.join(', ')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg text-sm">
+              ℹ️ Es werden automatisch neue Gruppen für jedes Ziel erstellt
+            </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep(2)}>
@@ -240,7 +280,7 @@ export const HubDialog = ({
                 onClick={handleCreateHub}
                 className="bg-orange-500 hover:bg-orange-600"
               >
-                🔄 Hub erstellen
+                🔄 Hub mit {selectedTripIds.length} Weiterfahrten erstellen
               </Button>
             </DialogFooter>
           </div>

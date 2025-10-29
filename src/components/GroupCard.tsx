@@ -286,11 +286,13 @@ export const GroupCard = ({
             <Tooltip>
               <TooltipTrigger>
                 <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
-                  🔄 {busGroup.hub_role === 'incoming' ? '→' : '←'} {busGroup.hub_location}
+                  {busGroup.hub_role === 'incoming' 
+                    ? `→ ${busGroup.hub_location} 🔄` 
+                    : `🔄 ${busGroup.hub_location} →`}
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
-                <p>{busGroup.hub_role === 'incoming' ? 'Ankunft' : 'Abfahrt'} am Hub</p>
+                <p>{busGroup.hub_role === 'incoming' ? 'Hub-Ankunft' : 'Hub-Weiterfahrt'}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
