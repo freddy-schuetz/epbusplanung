@@ -168,13 +168,19 @@ const Index = () => {
       });
       
       // Merge stops data from database for planned trips
+      console.log('[Index] 🔍 Merging stops from database...');
       mappedTrips.forEach((trip: any) => {
         if (trip.storedStops && Array.isArray(trip.storedStops) && trip.storedStops.length > 0) {
+          console.log(`[Index] 🔍 Replacing stops for ${trip.reisecode} with ${trip.storedStops.length} stops from DB`);
+          console.log(`[Index] 🔍 First stop: "${trip.storedStops[0]?.['Zustieg/Ausstieg']}" with ${trip.storedStops[0]?.Anzahl} PAX`);
+          
           // Replace stops for this trip with database version
           setStops(prevStops => {
             const updatedStops = prevStops.filter(s => s.Reisecode !== trip.reisecode);
             return [...updatedStops, ...trip.storedStops];
           });
+        } else {
+          console.log(`[Index] 🔍 No stored stops found for ${trip.reisecode}`);
         }
       });
       

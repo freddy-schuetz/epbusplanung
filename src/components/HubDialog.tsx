@@ -152,8 +152,12 @@ export const HubDialog = ({
       // 1. Calculate combined passenger counts at stops before hub
       const totalPassengersBeforeHub: { [stopName: string]: number } = {};
       
+      console.log('[HubDialog] 🔍 Calculating passenger totals for stops before hub:', selectedStop);
+      
       for (const gId of allInvolvedGroupIds) {
         const stopsBeforeHub = getStopsBeforeHubForGroup(gId);
+        console.log(`[HubDialog] 🔍 Group ${gId} stops before hub:`, stopsBeforeHub.length);
+        
         stopsBeforeHub.forEach(stop => {
           const stopName = stop['Zustieg/Ausstieg'];
           if (stopName) {
@@ -161,9 +165,12 @@ export const HubDialog = ({
               totalPassengersBeforeHub[stopName] = 0;
             }
             totalPassengersBeforeHub[stopName] += stop.Anzahl || 0;
+            console.log(`[HubDialog] 🔍 Stop "${stopName}": adding ${stop.Anzahl} PAX, total now: ${totalPassengersBeforeHub[stopName]}`);
           }
         });
       }
+      
+      console.log('[HubDialog] 🔍 Final passenger totals before hub:', totalPassengersBeforeHub);
 
       // 2. Update collector group's trips with combined passengers
       const collectorGroupTrips = collectorGroupId === currentGroup.id 
@@ -182,10 +189,13 @@ export const HubDialog = ({
         const updatedStops = chronologicalStops.map(stop => {
           const stopName = stop['Zustieg/Ausstieg'];
           if (stopName && totalPassengersBeforeHub[stopName]) {
+            console.log(`[HubDialog] 🔍 COLLECTOR: Updating stop "${stopName}" from ${stop.Anzahl} to ${totalPassengersBeforeHub[stopName]} PAX`);
             return { ...stop, Anzahl: totalPassengersBeforeHub[stopName] };
           }
           return stop;
         });
+        
+        console.log(`[HubDialog] 🔍 COLLECTOR: Saving ${updatedStops.length} stops for trip ${trip.reisecode}`);
         
         // Save updated stops to database
         const { error: tripUpdateError } = await supabase
@@ -199,6 +209,8 @@ export const HubDialog = ({
           setLoading(false);
           return;
         }
+        
+        console.log(`[HubDialog] ✅ COLLECTOR: Stops saved successfully for trip ${trip.reisecode}`);
       }
 
       // 3. Update non-collector groups - remove stops before hub
@@ -221,6 +233,10 @@ export const HubDialog = ({
             // Keep only stops from hub onwards
             const newStops = chronologicalStops.slice(hubIndex);
             
+            console.log(`[HubDialog] 🔍 OUTGOING: Trip ${trip.reisecode} - removing ${hubIndex} stops before hub`);
+            console.log(`[HubDialog] 🔍 OUTGOING: Old stops count: ${chronologicalStops.length}, New stops count: ${newStops.length}`);
+            console.log(`[HubDialog] 🔍 OUTGOING: First stop is now "${newStops[0]?.['Zustieg/Ausstieg']}" (hub location)`);
+            
             const { error: tripUpdateError } = await supabase
               .from('trips')
               .update({ stops: newStops as any })
@@ -232,6 +248,8 @@ export const HubDialog = ({
               setLoading(false);
               return;
             }
+            
+            console.log(`[HubDialog] ✅ OUTGOING: Stops saved successfully for trip ${trip.reisecode}`);
           }
         }
       }
