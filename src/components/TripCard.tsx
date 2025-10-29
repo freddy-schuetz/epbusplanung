@@ -100,11 +100,6 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
           <div className="flex items-center gap-2 flex-wrap text-sm">
             <span className="text-muted-foreground font-medium">{departureTime || '--:--'}</span>
             <span className="text-primary font-semibold">{trip.reisecode}</span>
-            {trip.produktcode && (
-              <Badge variant="secondary" className="text-xs py-0 h-5">
-                {trip.produktcode}
-              </Badge>
-            )}
             <StatusBadge status={trip.planningStatus} />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
