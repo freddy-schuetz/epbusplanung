@@ -96,10 +96,21 @@ export const HubDialog = ({
       const firstTrip = groupTrips[0];
       if (!firstTrip) return { groupId: group.id, tripNumber: '', allStops: [], firstStop: null, lastStop: null };
       
-      const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
-      const chronologicalStops = [...tripStops].sort((a, b) => {
-        const timeA = a.Zeit || '';
-        const timeB = b.Zeit || '';
+      // Use trip.stops JSONB field directly
+      const tripStops = firstTrip.stops || [];
+      
+      // Filter for hin direction with valid times only
+      const hinStops = tripStops.filter(s => {
+        const isHinfahrt = s.Beförderung && 
+          (s.Beförderung.includes('Hinfahrt') || s.Beförderung.includes('Bus Hinfahrt'));
+        const hasValidTime = s.Zeit && s.Zeit.trim() !== '';
+        return isHinfahrt && hasValidTime;
+      });
+      
+      // Sort by time
+      const chronologicalStops = [...hinStops].sort((a, b) => {
+        const timeA = a.Zeit || '00:00';
+        const timeB = b.Zeit || '00:00';
         return timeA.localeCompare(timeB);
       });
       
@@ -107,7 +118,10 @@ export const HubDialog = ({
       const firstStop = stopNames[0];
       const lastStop = stopNames[stopNames.length - 1];
       
-      console.log(`[HubDialog] 🔍 Group ${group.trip_number || group.id}: ${stopNames.join(' → ')}`);
+      console.log(`[HubDialog] 🔍 Group ${group.trip_number || group.id}:`);
+      console.log(`  - Total stops in trip.stops: ${tripStops.length}`);
+      console.log(`  - Hin stops with time: ${hinStops.length}`);
+      console.log(`  - Chronological: ${stopNames.join(' → ')}`);
       
       return { 
         groupId: group.id,

@@ -28,6 +28,7 @@ export interface Trip {
   planningStatus: 'unplanned' | 'draft' | 'completed' | 'locked';
   groupId: string | null;
   busDetails: BusDetails | null;
+  stops?: Stop[];
 }
 
 export interface BusGroup {
