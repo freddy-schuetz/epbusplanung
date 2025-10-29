@@ -33,6 +33,7 @@ const Index = () => {
   const [filterDirection, setFilterDirection] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [activeDragTrip, setActiveDragTrip] = useState<Trip | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -493,6 +494,21 @@ const Index = () => {
       console.error('[Index] Error updating group:', error);
       toast.error('Fehler beim Aktualisieren');
     }
+  };
+
+  const handleHubCreated = async () => {
+    console.log('[Index] Hub created/updated - forcing complete data refresh');
+    
+    // Clear stops to force complete rebuild
+    setStops([]);
+    
+    // Reload everything from database
+    await loadAllData();
+    
+    // Force React to re-render with new key
+    setRefreshKey(prev => prev + 1);
+    
+    console.log('[Index] Hub refresh complete');
   };
 
   const handleSplitGroup = async (groupId: string, splitGroups: any[]) => {
@@ -1033,6 +1049,7 @@ const Index = () => {
                   allTrips={trips}
                   allBusGroups={busGroups}
                   selectedTrips={selectedTrips}
+                  refreshKey={refreshKey}
                   onToggleSelection={toggleSelection}
                   onUpdateGroup={updateGroup}
                   onCompleteGroup={completeGroup}
@@ -1041,7 +1058,7 @@ const Index = () => {
                   onUnlockGroup={unlockGroup}
                   onDissolveGroup={dissolveGroup}
                   onSplitGroup={handleSplitGroup}
-                  onHubCreated={loadAllData}
+                  onHubCreated={handleHubCreated}
                 />
               );
             })

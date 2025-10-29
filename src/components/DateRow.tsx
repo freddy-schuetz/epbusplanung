@@ -17,6 +17,7 @@ interface DateRowProps {
   allTrips: Trip[];
   allBusGroups: BusGroup[];
   selectedTrips: Set<string>;
+  refreshKey?: number;
   onToggleSelection: (tripId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
@@ -40,6 +41,7 @@ export const DateRow = ({
   allTrips,
   allBusGroups,
   selectedTrips,
+  refreshKey = 0,
   onToggleSelection,
   onUpdateGroup,
   onCompleteGroup,
@@ -109,7 +111,7 @@ export const DateRow = ({
                 </div>
                 {plannedGroups.map(group => (
                   <GroupCard
-                    key={`${group.groupId}-${group.displayMode || 'departure'}`}
+                    key={`${group.groupId}-${group.displayMode || 'departure'}-${refreshKey}`}
                     groupId={group.groupId}
                     trips={group.trips}
                     stops={stops}
