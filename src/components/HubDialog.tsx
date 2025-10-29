@@ -142,15 +142,27 @@ export const HubDialog = ({
       // Must be in every single group
       const inAllGroups = groupStopsData.every(g => g.allStops.includes(stopName));
       
-      // Must not be a start or end point of any group
-      const isStartOrEnd = groupStopsData.some(g => 
-        g.firstStop === stopName || g.lastStop === stopName
-      );
+      // Exclude if it's a FIRST stop (pickup point) for any group
+      const isStartPoint = groupStopsData.some(g => g.firstStop === stopName);
       
-      return inAllGroups && !isStartOrEnd;
+      // Exclude ONLY if it's the LAST stop for ALL groups (true final destination)
+      const isEveryonesLastStop = groupStopsData.every(g => g.lastStop === stopName);
+      
+      return inAllGroups && !isStartPoint && !isEveryonesLastStop;
     });
     
-    console.log('[HubDialog] 🔍 Common stops (in ALL groups, not start/end):', commonStops);
+    console.log('[HubDialog] 🔍 Intersection details:');
+    groupStopsData.forEach(g => {
+      console.log(`  - ${g.tripNumber}: First="${g.firstStop}" Last="${g.lastStop}"`);
+    });
+    console.log(`[HubDialog] 🔍 Testing each potential hub:`);
+    [...firstGroupStops].forEach(stopName => {
+      const inAll = groupStopsData.every(g => g.allStops.includes(stopName));
+      const isStart = groupStopsData.some(g => g.firstStop === stopName);
+      const isEveryonesEnd = groupStopsData.every(g => g.lastStop === stopName);
+      console.log(`  - ${stopName}: inAll=${inAll}, isStart=${isStart}, isEveryonesEnd=${isEveryonesEnd} → ${inAll && !isStart && !isEveryonesEnd ? '✅ HUB' : '❌'}`);
+    });
+    console.log('[HubDialog] 🔍 Common stops (valid hubs):', commonStops);
     
     return commonStops;
   };
