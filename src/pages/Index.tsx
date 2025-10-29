@@ -7,7 +7,7 @@ import { DateRow } from '@/components/DateRow';
 import { TripCard } from '@/components/TripCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Trip, Stop, APIResponse, APIBooking } from '@/types/bus';
+import { Trip, Stop, APIResponse, APIBooking, BusGroup } from '@/types/bus';
 import { convertDateToAPI, parseGermanDate, getWeekdayName, getTodayString, addDays } from '@/lib/dateUtils';
 import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ const Index = () => {
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [selectedTrips, setSelectedTrips] = useState<Set<string>>(new Set());
   const [nextGroupId, setNextGroupId] = useState(1);
+  const [busGroups, setBusGroups] = useState<BusGroup[]>([]);
   
   const [dateFrom, setDateFrom] = useState('2025-11-01');
   const [dateTo, setDateTo] = useState('2026-04-30');
@@ -111,6 +112,12 @@ const Index = () => {
     try {
       const data = await fetchTrips(user.id);
       const busGroupsData = await fetchBusGroups(user.id);
+      
+      // Store bus groups in state for Hub dialog (with proper typing)
+      setBusGroups(busGroupsData.map(bg => ({
+        ...bg,
+        hub_role: bg.hub_role as 'incoming' | 'outgoing' | null,
+      })));
       
       // Create a map of bus_groups by id for easy lookup
       const busGroupsMap = new Map(
@@ -977,6 +984,7 @@ const Index = () => {
                   nextDayKey={nextDayKey}
                   stops={stops}
                   allTrips={trips}
+                  allBusGroups={busGroups}
                   selectedTrips={selectedTrips}
                   onToggleSelection={toggleSelection}
                   onUpdateGroup={updateGroup}

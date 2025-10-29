@@ -14,6 +14,7 @@ interface GroupCardProps {
   trips: Trip[];
   stops: Stop[];
   allTrips: Trip[];
+  allBusGroups: BusGroup[];
   displayMode?: 'departure' | 'return';
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
@@ -30,6 +31,7 @@ export const GroupCard = ({
   trips,
   stops,
   allTrips,
+  allBusGroups,
   displayMode = 'departure',
   onUpdateGroup,
   onCompleteGroup,
@@ -480,6 +482,7 @@ export const GroupCard = ({
         onClose={() => setShowHubDialog(false)}
         currentGroup={{ id: groupId, trips }}
         allTrips={allTrips}
+        allBusGroups={allBusGroups}
         stops={stops}
         onHubCreated={onHubCreated}
       />
