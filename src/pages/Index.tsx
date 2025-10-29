@@ -559,20 +559,6 @@ const Index = () => {
     }
   };
 
-  const connectTrip = async (currentGroupId: string, targetGroupId: string) => {
-    try {
-      // Update both groups with connected_trip_id
-      await updateBusGroup(currentGroupId, { connected_trip_id: targetGroupId });
-      await updateBusGroup(targetGroupId, { connected_trip_id: currentGroupId });
-      
-      await loadAllData();
-      toast.success('Anschlussfahrten erfolgreich verbunden');
-    } catch (error) {
-      console.error('[Index] Error connecting trips:', error);
-      toast.error('Fehler beim Verbinden der Anschlussfahrten');
-    }
-  };
-
   const setGroupToDraft = async (groupId: string) => {
     const groupTrips = trips.filter(t => t.groupId === groupId);
     
@@ -999,8 +985,6 @@ const Index = () => {
                   onUnlockGroup={unlockGroup}
                   onDissolveGroup={dissolveGroup}
                   onSplitGroup={handleSplitGroup}
-                  allTrips={trips}
-                  onConnectTrip={connectTrip}
                 />
               );
             })
