@@ -115,14 +115,28 @@ export const GroupCard = ({
       });
       
       // Get unique stop names in chronological order
-      const stopNames = sortedHinStops.slice(0, -1).map(s => s['Zustieg/Ausstieg']);
+      const stopNames = [...new Set(sortedHinStops.slice(0, -1).map(s => s['Zustieg/Ausstieg']))];
       const destination = getDestinationWithCodes(hinTrips);
       
       if (sortedHinStops.length > 0) {
         const firstTime = sortedHinStops[0].Zeit || '';
-        // Build route: "22:00 Köln → Frankfurt → Karlsruhe → Davos (DPW/DWW)"
-        const routeParts = [...new Set(stopNames), destination];
-        hinRoute = `↗ ${firstTime} ${routeParts.join(' → ')}`;
+        const firstStop = stopNames[0];
+        const middleStops = stopNames.slice(1);
+        
+        hinRoute = (
+          <>
+            <span>↗ </span>
+            <span className="font-bold">{firstTime} {firstStop}</span>
+            {middleStops.map((stop, idx) => (
+              <span key={idx}>
+                <span> → </span>
+                <span className="text-sm font-normal opacity-80">{stop}</span>
+              </span>
+            ))}
+            <span> → </span>
+            <span className="font-bold">{destination}</span>
+          </>
+        );
       }
     }
 
@@ -150,13 +164,28 @@ export const GroupCard = ({
       });
       
       // Get unique stop names
-      const stopNames = sortedRueckStops.map(s => s['Zustieg/Ausstieg']);
+      const stopNames = [...new Set(sortedRueckStops.map(s => s['Zustieg/Ausstieg']))];
       const origin = getDestinationWithCodes(rueckTrips);
       
       if (sortedRueckStops.length > 0) {
-        // Build route: "Davos (SSL/LPJ) → Karlsruhe → Frankfurt → Köln"
-        const routeParts = [origin, ...new Set(stopNames)];
-        rueckRoute = `↘ ${routeParts.join(' → ')}`;
+        const firstStop = origin;
+        const middleStops = stopNames.slice(0, -1);
+        const lastStop = stopNames[stopNames.length - 1];
+        
+        rueckRoute = (
+          <>
+            <span>↘ </span>
+            <span className="font-bold">{firstStop}</span>
+            {middleStops.map((stop, idx) => (
+              <span key={idx}>
+                <span> → </span>
+                <span className="text-sm font-normal opacity-80">{stop}</span>
+              </span>
+            ))}
+            <span> → </span>
+            <span className="font-bold">{lastStop}</span>
+          </>
+        );
       }
     }
 
