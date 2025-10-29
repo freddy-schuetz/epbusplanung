@@ -35,11 +35,19 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   };
 
   // Calculate route display from stops (safely handle undefined/empty stops)
-  const filteredStops = (stops || []).filter(
-    stop => stop.Reisecode === trip.reisecode && 
-    stop.Beförderung?.toLowerCase().includes(trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt') &&
-    stop.Zeit && stop.Zeit.trim() !== ''
-  );
+  const filteredStops = (stops || []).filter(stop => {
+    const matchesReisecode = stop.Reisecode === trip.reisecode;
+    const matchesDirection = stop.Beförderung?.toLowerCase().includes(
+      trip.direction === 'hin' ? 'hinfahrt' : 'rückfahrt'
+    );
+    
+    // For outbound trips, require a time. For return trips, allow stops without times
+    const hasValidTime = trip.direction === 'hin' 
+      ? stop.Zeit && stop.Zeit.trim() !== ''
+      : true; // Return trips can have stops without times
+    
+    return matchesReisecode && matchesDirection && hasValidTime;
+  });
 
   // Parse trip date for datetime calculation
   const [day, month, year] = trip.datum.split('.').map(Number);
@@ -60,7 +68,12 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   };
 
   // Sort by full datetime (not just time string)
+  // For stops without times, sort them at the end
   const tripStops = filteredStops.sort((a, b) => {
+    // If either stop doesn't have a time, put it at the end
+    if (!a.Zeit || a.Zeit.trim() === '') return 1;
+    if (!b.Zeit || b.Zeit.trim() === '') return -1;
+    
     const dateA = getStopDateTime(a);
     const dateB = getStopDateTime(b);
     return dateA.getTime() - dateB.getTime();
