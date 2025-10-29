@@ -46,6 +46,7 @@ export const GroupForm = ({
   console.log('[GroupForm] 🔍 Received stops count:', stops.length);
   const firstTrip = trips[0];
   const isLocked = firstTrip.planningStatus === 'locked';
+  const isReadonly = firstTrip.planningStatus === 'completed' || firstTrip.planningStatus === 'locked';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
 
   // Check for Standbus (bus stays on-site)
@@ -368,7 +369,7 @@ export const GroupForm = ({
               const autoLuggage = selectedBus && selectedBus.seats >= 70 ? 'Anhänger' : 'ohne';
               setBusDetails({ ...busDetails, busId: value, luggage: autoLuggage });
             }}
-            disabled={isLocked}
+            disabled={isReadonly}
           >
             <SelectTrigger id={`busId-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -398,7 +399,7 @@ export const GroupForm = ({
             type="number"
             value={busDetails.kmHinweg}
             onChange={(e) => setBusDetails({ ...busDetails, kmHinweg: e.target.value })}
-            disabled={isLocked}
+            disabled={isReadonly}
           />
         </div>
 
@@ -409,7 +410,7 @@ export const GroupForm = ({
             type="number"
             value={busDetails.kmRueckweg}
             onChange={(e) => setBusDetails({ ...busDetails, kmRueckweg: e.target.value })}
-            disabled={isLocked}
+            disabled={isReadonly}
           />
         </div>
 
@@ -418,7 +419,7 @@ export const GroupForm = ({
           <Select
             value={busDetails.luggage}
             onValueChange={(value) => setBusDetails({ ...busDetails, luggage: value })}
-            disabled={isLocked}
+            disabled={isReadonly}
           >
             <SelectTrigger id={`luggage-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -436,7 +437,7 @@ export const GroupForm = ({
           <Select
             value={busDetails.accommodation}
             onValueChange={(value) => setBusDetails({ ...busDetails, accommodation: value })}
-            disabled={isLocked}
+            disabled={isReadonly}
           >
             <SelectTrigger id={`accommodation-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -456,13 +457,13 @@ export const GroupForm = ({
             rows={3}
             value={busDetails.notes}
             onChange={(e) => setBusDetails({ ...busDetails, notes: e.target.value })}
-            disabled={isLocked}
+            disabled={isReadonly}
           />
         </div>
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
+        <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90" disabled={isReadonly}>
           💾 Speichern
         </Button>
         {firstTrip.planningStatus === 'completed' ? (
@@ -470,11 +471,11 @@ export const GroupForm = ({
             ↩️ Zurück auf Entwurf
           </Button>
         ) : (
-          <Button onClick={handleComplete} className="gradient-primary">
+          <Button onClick={handleComplete} className="gradient-primary" disabled={isReadonly}>
             ✅ Fertigstellen
           </Button>
         )}
-        <Button onClick={handleDissolve} variant="destructive">
+        <Button onClick={handleDissolve} variant="destructive" disabled={isReadonly}>
           ❌ Auflösen
         </Button>
       </div>
