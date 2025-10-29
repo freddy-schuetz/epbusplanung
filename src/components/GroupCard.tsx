@@ -232,24 +232,6 @@ export const GroupCard = ({
     if (bus) busInfo = bus.name;
   }
 
-  const renderActions = () => {
-    const status = firstTrip.planningStatus;
-    
-    if (status === 'draft') {
-      return (
-        <Button size="sm" onClick={(e) => { e.stopPropagation(); onCompleteGroup(groupId); }} className="gradient-primary">
-          ✅ Fertig
-        </Button>
-      );
-    } else if (status === 'completed' || status === 'locked') {
-      return (
-        <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onSetGroupToDraft(groupId); }} className="bg-secondary text-secondary-foreground">
-          ✏️ Bearbeiten
-        </Button>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className={`border-2 rounded-lg overflow-hidden mb-3 shadow-sm ${
@@ -301,9 +283,6 @@ export const GroupCard = ({
             </div>
           )}
           <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
-          <span className="opacity-90">
-            <StatusBadge status={firstTrip.planningStatus} />
-          </span>
         </div>
         <div className="flex items-center gap-4">
           {hinPax > 0 && rueckPax > 0 ? (
@@ -317,8 +296,8 @@ export const GroupCard = ({
             <span className="text-sm">{rueckPax} PAX</span>
           )}
           {busInfo && <span className="text-sm">{busInfo}</span>}
-          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-            {renderActions()}
+          <div className="flex items-center gap-2">
+            <StatusBadge status={firstTrip.planningStatus} />
           </div>
           <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
