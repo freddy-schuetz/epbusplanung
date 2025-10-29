@@ -315,8 +315,9 @@ export const HubDialog = ({
           : allTrips.filter(t => t.groupId === gId);
         
         for (const trip of groupTrips) {
-          const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
-          const chronologicalStops = [...tripStops].sort((a, b) => {
+          // Get CURRENT stops from the trip (from database, not processed prop)
+          const currentTripStops = trip.stops as Stop[];
+          const chronologicalStops = [...currentTripStops].sort((a, b) => {
             const timeA = a.Zeit || '';
             const timeB = b.Zeit || '';
             return timeA.localeCompare(timeB);
@@ -327,21 +328,19 @@ export const HubDialog = ({
             // Keep only stops from hub onwards
             const newStops = chronologicalStops.slice(hubIndex);
             
-            // Calculate passengers TRANSFERRING TO this outgoing bus:
-            // This is THIS GROUP'S OWN passengers from stops before hub
-            // (they board the collector, then transfer back to this bus at the hub)
-            const stopsBeforeHubForThisGroup = getStopsBeforeHubForGroup(gId);
-            const transferredPassengers = stopsBeforeHubForThisGroup.reduce(
-              (sum, stop) => sum + (stop.Anzahl || 0), 
+            // Calculate passengers from stops BEFORE hub (these transfer via collector)
+            const stopsBeforeHub = chronologicalStops.slice(0, hubIndex);
+            const transferredPassengers = stopsBeforeHub.reduce(
+              (sum, stop) => sum + (stop.Anzahl || 0),
               0
             );
             
-            console.log(`[HubDialog] 🔍 OUTGOING ${trip.reisecode}: Own passengers from stops before hub: ${transferredPassengers} PAX`);
-            stopsBeforeHubForThisGroup.forEach(stop => {
+            console.log(`[HubDialog] 🔍 OUTGOING ${trip.reisecode}: Passengers from ${stopsBeforeHub.length} stops before hub: ${transferredPassengers} PAX`);
+            stopsBeforeHub.forEach(stop => {
               console.log(`  - ${stop['Zustieg/Ausstieg']}: ${stop.Anzahl} PAX`);
             });
             
-            // Calculate own passengers at and after hub (already on this bus)
+            // Calculate own passengers at and after hub
             const ownPassengersAtAndAfterHub = chronologicalStops
               .slice(hubIndex)
               .reduce((sum, stop) => sum + (stop.Anzahl || 0), 0);
