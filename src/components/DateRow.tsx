@@ -158,7 +158,7 @@ export const DateRow = ({
 
             <div className="bg-card rounded-lg p-3 border">
               <div className="bg-destructive/10 text-destructive font-semibold p-2 rounded-lg mb-3 text-center border border-destructive/30 text-sm">
-                🔴 Rückfahrten {nextDayKey}
+                🔴 Rückfahrten {date}
               </div>
               <div className="space-y-2">
                 {sortedRueckfahrten.length > 0 ? (
