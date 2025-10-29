@@ -277,14 +277,24 @@ export const GroupCard = ({
     
     if (myStopNames.length === 0) return false;
     
-    // Check if any other unplanned trip on same date shares any of these stops
+    // Check if any OTHER COMPLETED trip on same date shares any of these stops
     const hasCommonStops = allTrips.some(trip => {
-      if (trip.planningStatus !== 'unplanned') return false;
+      // Must be completed (not unplanned/draft/locked)
+      if (trip.planningStatus !== 'completed') return false;
+      // Must be on same date
       if (trip.datum !== currentDate) return false;
-      if (trips.some(t => t.id === trip.id)) return false; // Skip current group's trips
+      // Skip current group's trips
+      if (trips.some(t => t.id === trip.id)) return false;
       
-      const tripStops = stops.filter(s => s.Reisecode === trip.reisecode);
-      return tripStops.some(s => myStopNames.includes(s['Zustieg/Ausstieg']));
+      // Check if this trip has any common stops
+      const otherTripStops = stops.filter(s => s.Reisecode === trip.reisecode);
+      const hasCommon = otherTripStops.some(s => myStopNames.includes(s['Zustieg/Ausstieg']));
+      
+      if (hasCommon) {
+        console.log('[GroupCard] Found common stop between', trips[0].reisecode, 'and', trip.reisecode);
+      }
+      
+      return hasCommon;
     });
     
     return hasCommonStops;
