@@ -96,8 +96,8 @@ export const HubDialog = ({
       const firstTrip = groupTrips[0];
       if (!firstTrip) return { groupId: group.id, tripNumber: '', allStops: [], firstStop: null, lastStop: null };
       
-      // Use trip.stops JSONB field directly
-      const tripStops = firstTrip.stops || [];
+      // Use global stops array filtered by reisecode (matches how GroupForm accesses stops)
+      const tripStops = stops.filter(s => s.Reisecode === firstTrip.reisecode);
       
       // Filter for hin direction with valid times only
       const hinStops = tripStops.filter(s => {
