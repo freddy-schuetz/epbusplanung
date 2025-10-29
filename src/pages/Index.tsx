@@ -291,13 +291,24 @@ const Index = () => {
                 s.Beförderung && s.Beförderung.toLowerCase().includes('rückfahrt')
               );
 
+              const datumValue = booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '';
+              
+              if (booking.Reisecode === 'DPWSPS131125') {
+                console.log('[Index] 🔍 DPWSPS131125 Rückfahrt date processing:', {
+                  'Rückfahrt von': booking['Rückfahrt von'],
+                  'Rückfahrt bis': booking['Rückfahrt bis'],
+                  'Final datum': datumValue,
+                  'Raw booking': booking
+                });
+              }
+
               unplannedTrips.push({
                 id: tripKey,
                 direction: 'rueck',
                 reisecode: booking.Reisecode,
                 produktcode: booking.Produktcode || '',
                 reise: booking.Reise || '',
-                datum: booking['Rückfahrt von'] || booking['Rückfahrt bis'] || '',
+                datum: datumValue,
                 uhrzeit: rueckStops[0]?.Zeit || '',
                 kontingent: booking['Rückfahrt Kontingent'] || 0,
                 buchungen: booking['Rückfahrt Buchungen'] || 0,
@@ -903,6 +914,16 @@ const Index = () => {
 
     filteredTrips.forEach(trip => {
       const dateKey = trip.datum || 'Kein Datum';
+      
+      if (trip.reisecode === 'DPWSPS131125' && trip.direction === 'rueck') {
+        console.log('[Index] 🔍 DPWSPS131125 in organizedData():', {
+          'trip.datum': trip.datum,
+          'dateKey': dateKey,
+          'trip.direction': trip.direction,
+          'trip.planningStatus': trip.planningStatus
+        });
+      }
+      
       allDates.add(dateKey);
 
       if (!plannedGroupsByDate[dateKey]) plannedGroupsByDate[dateKey] = [];
