@@ -96,22 +96,20 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <span className="text-muted-foreground font-medium text-sm whitespace-nowrap">
-          {departureTime || '--:--'}
-        </span>
-        <span className="text-primary font-semibold text-sm whitespace-nowrap">
-          {trip.reisecode}
-        </span>
-        <span className="flex-1 text-sm text-foreground truncate">
-          {trip.reise}
-        </span>
-        <span className="font-semibold text-sm whitespace-nowrap">
-          {trip.buchungen} PAX
-        </span>
-        <span className="text-sm text-muted-foreground whitespace-nowrap">
-          Kont: {trip.kontingent}
-        </span>
-        <StatusBadge status={trip.planningStatus} />
+        <div className="flex-1 space-y-0.5">
+          <div className="flex items-center gap-2 flex-wrap text-sm">
+            <span className="text-muted-foreground font-medium">{departureTime || '--:--'}</span>
+            <span className="text-primary font-semibold">{trip.reisecode}</span>
+            <StatusBadge status={trip.planningStatus} />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+            <span className="font-medium text-foreground">
+              {routeDisplay}
+            </span>
+            <span className="font-semibold text-foreground">{trip.buchungen} PAX</span>
+            <span>Kont: {trip.kontingent}</span>
+          </div>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
