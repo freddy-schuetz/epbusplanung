@@ -74,6 +74,24 @@ export const GroupCard = ({
     return parts[0]?.trim() || 'Ziel';
   };
 
+  // Extract origin from trip name (same as destination, but used for return trips)
+  const extractOrigin = (tripName: string) => {
+    const parts = tripName.split(' - ');
+    return parts[0]?.trim() || 'Start';
+  };
+
+  // Check if return trip starts from different location
+  const checkLocationChange = () => {
+    if (hinTrips.length > 0 && rueckTrips.length > 0) {
+      const hinDestination = extractDestination(hinTrips[0].reise);
+      const rueckOrigin = extractOrigin(rueckTrips[0].reise);
+      return hinDestination !== rueckOrigin;
+    }
+    return false;
+  };
+
+  const hasLocationChange = checkLocationChange();
+
   // Calculate route displays for both directions
   const calculateRoutes = () => {
     if (!hasHin && !hasRueck) return null;
@@ -268,6 +286,22 @@ export const GroupCard = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>Bus bleibt {standbusDays} Tage vor Ort</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {/* Location change badge */}
+        {hasLocationChange && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs">
+                  📍 Ortswechsel
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Rückfahrt startet von anderem Ort</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
