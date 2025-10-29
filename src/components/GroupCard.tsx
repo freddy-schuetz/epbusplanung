@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { StatusBadge } from './StatusBadge';
 import { GroupForm } from './GroupForm';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
@@ -238,69 +237,90 @@ export const GroupCard = ({
       isStandbus ? 'bg-orange-50 border-orange-300' : 'bg-card border-primary/30'
     }`}>
       <div
-        className={`text-white p-4 flex items-center justify-between cursor-pointer hover:opacity-90 transition-opacity ${
-          isStandbus ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'gradient-primary'
+        className={`text-white p-2 flex items-center gap-4 cursor-pointer hover:opacity-90 transition-opacity ${
+          isStandbus ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'bg-gradient-to-r from-purple-500 to-purple-600'
         }`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center gap-3">
-          {busGroup?.trip_number && (
-            <span className="bg-white/30 px-3 py-1 rounded font-bold">
-              Fahrt-Nr: {busGroup.trip_number}
-            </span>
-          )}
-          {isSplitGroup && (
-            <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
-              Teil {busGroup.part_number}/{busGroup.total_parts}
-            </Badge>
-          )}
-          {isStandbus && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold">
-                    {displayMode === 'return' ? '🅿️ STANDBUS ← RÜCKFAHRT' : '🅿️ STANDBUS → HINFAHRT'}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Bus bleibt {standbusDays} Tage vor Ort</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          {routeDisplays && (
-            <div className="flex flex-col gap-1">
-              {routeDisplays.hin && (
-                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
-                  {routeDisplays.hin}
-                </span>
-              )}
-              {routeDisplays.rueck && (
-                <span className="bg-white/20 px-3 py-1 rounded font-semibold text-sm">
-                  {routeDisplays.rueck}
-                </span>
-              )}
-            </div>
-          )}
-          <span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">{directionText}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          {hinPax > 0 && rueckPax > 0 ? (
-            <>
-              <span className="text-sm">HIN: {hinPax} PAX</span>
-              <span className="text-sm">RÜCK: {rueckPax} PAX</span>
-            </>
-          ) : hinPax > 0 ? (
-            <span className="text-sm">{hinPax} PAX</span>
-          ) : (
-            <span className="text-sm">{rueckPax} PAX</span>
-          )}
-          {busInfo && <span className="text-sm">{busInfo}</span>}
-          <div className="flex items-center gap-2">
-            <StatusBadge status={firstTrip.planningStatus} />
+        {/* Bus icon + trip number */}
+        {busGroup?.trip_number && (
+          <div className="flex items-center gap-1">
+            <span>🚌</span>
+            <span className="font-bold">{busGroup.trip_number}</span>
           </div>
-          <ChevronDown className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        )}
+        
+        {/* Split badge */}
+        {isSplitGroup && (
+          <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
+            Teil {busGroup.part_number}/{busGroup.total_parts}
+          </Badge>
+        )}
+        
+        {/* Standbus badge */}
+        {isStandbus && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge className="bg-white/90 hover:bg-white text-orange-600 font-bold text-xs">
+                  🅿️ {standbusDays}d
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Bus bleibt {standbusDays} Tage vor Ort</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {/* Routes - inline on same line */}
+        {routeDisplays && (
+          <div className="flex-1 flex items-center gap-2 text-sm">
+            {routeDisplays.hin && (
+              <span className="inline-flex items-center gap-1">
+                {routeDisplays.hin}
+              </span>
+            )}
+            {routeDisplays.hin && routeDisplays.rueck && <span>|</span>}
+            {routeDisplays.rueck && (
+              <span className="inline-flex items-center gap-1">
+                {routeDisplays.rueck}
+              </span>
+            )}
+          </div>
+        )}
+        
+        {/* PAX info - compact */}
+        <div className="flex gap-2 text-sm whitespace-nowrap">
+          {hinPax > 0 && <span>↗{hinPax}</span>}
+          {rueckPax > 0 && <span>↘{rueckPax}</span>}
         </div>
+        
+        {/* Bus name */}
+        {busInfo && <span className="text-sm whitespace-nowrap">{busInfo}</span>}
+        
+        {/* Status icon only */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="text-lg">
+                {firstTrip.planningStatus === 'draft' && '📝'}
+                {firstTrip.planningStatus === 'completed' && '✅'}
+                {firstTrip.planningStatus === 'locked' && '🔒'}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {firstTrip.planningStatus === 'draft' && 'Entwurf'}
+                {firstTrip.planningStatus === 'completed' && 'Fertig'}
+                {firstTrip.planningStatus === 'locked' && 'Gesperrt'}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {/* Expand icon */}
+        <ChevronDown className={`transition-transform w-4 h-4 ${isExpanded ? 'rotate-180' : ''}`} />
       </div>
       
       {isExpanded && (
