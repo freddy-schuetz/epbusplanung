@@ -2,10 +2,8 @@ import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Checkbox } from '@/components/ui/checkbox';
-import { StatusBadge } from './StatusBadge';
 import { Trip, Stop } from '@/types/bus';
 import { GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 
 interface TripCardProps {
   trip: Trip;
@@ -82,42 +80,33 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
       {...attributes}
       className="bg-card border border-border rounded-lg overflow-hidden transition-all hover:shadow-md"
     >
-      <div className="p-2 flex items-center gap-2">
+      <div className="p-2 flex items-center gap-3 text-sm">
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelection(trip.id)}
-          className="w-4 h-4 relative z-10"
+          className="w-4 h-4 relative z-10 shrink-0"
           onClick={(e) => e.stopPropagation()}
         />
         <button
           {...listeners}
-          className="cursor-grab active:cursor-grabbing touch-none p-0.5 hover:bg-accent rounded transition-colors"
+          className="cursor-grab active:cursor-grabbing touch-none p-0.5 hover:bg-accent rounded transition-colors shrink-0"
           aria-label="Drag to create group"
         >
           <GripVertical className="w-4 h-4 text-muted-foreground" />
         </button>
-        <div className="flex-1 space-y-0.5">
-          <div className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="text-muted-foreground font-medium">{departureTime || '--:--'}</span>
-            <span className="text-primary font-semibold">{trip.reisecode}</span>
-            <StatusBadge status={trip.planningStatus} />
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-            <span className="font-medium text-foreground">
-              {routeDisplay}
-            </span>
-            <span className="font-semibold text-foreground">{trip.buchungen} PAX</span>
-            <span>Kont: {trip.kontingent}</span>
-          </div>
-        </div>
+        <span className="text-muted-foreground font-medium shrink-0">{departureTime || '--:--'}</span>
+        <span className="flex-1 truncate font-medium">{routeDisplay}</span>
+        <span className="text-primary font-semibold shrink-0">{trip.reisecode}</span>
+        <span className="font-semibold shrink-0">{trip.buchungen} PAX</span>
+        <span className="text-muted-foreground shrink-0">Kont: {trip.kontingent}</span>
         <button
           onClick={(e) => {
             e.stopPropagation();
             setShowStops(!showStops);
           }}
-          className="p-1 hover:bg-accent rounded transition-colors"
+          className="p-1 hover:bg-accent rounded transition-colors shrink-0"
         >
-          {showStops ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {showStops ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </button>
       </div>
       
