@@ -80,8 +80,20 @@ export const TripCard = ({ trip, stops = [], isSelected, onToggleSelection }: Tr
   });
 
   const firstStop = tripStops[0]?.['Zustieg/Ausstieg'] || 'Start';
+  const lastStop = tripStops[tripStops.length - 1]?.['Zustieg/Ausstieg'] || 'Ziel';
   const destination = extractDestination(trip.reise); // Use actual destination from trip name
-  const routeDisplay = tripStops.length > 0 ? `${firstStop} → ${destination}` : trip.reise;
+  
+  // For return trips, reverse the direction (ski resort → home city)
+  let routeDisplay;
+  if (tripStops.length > 0) {
+    if (trip.direction === 'rueck') {
+      routeDisplay = `${destination} → ${lastStop}`;
+    } else {
+      routeDisplay = `${firstStop} → ${destination}`;
+    }
+  } else {
+    routeDisplay = trip.reise;
+  }
   
   // Get the actual first departure time from sorted stops
   const departureTime = tripStops.length > 0 ? tripStops[0]?.Zeit : trip.uhrzeit;
