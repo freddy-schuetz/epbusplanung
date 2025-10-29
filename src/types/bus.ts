@@ -12,6 +12,7 @@ export interface BusDetails {
   luggage: string;
   accommodation: string;
   notes: string;
+  tripNumber?: string;
 }
 
 export interface Trip {

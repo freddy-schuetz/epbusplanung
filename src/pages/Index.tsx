@@ -123,6 +123,7 @@ const Index = () => {
             luggage: bg.luggage || '',
             accommodation: bg.accommodation || '',
             notes: bg.notes || '',
+            tripNumber: bg.trip_number || '',
           }
         ])
       );
@@ -769,6 +770,37 @@ const Index = () => {
     }
   };
 
+  // Sort groups to keep split groups (022a, 022b) together
+  const sortGroupsWithSplits = (groups: Array<{ groupId: string; trips: Trip[]; displayMode?: 'departure' | 'return' }>) => {
+    return groups.sort((a, b) => {
+      const aNumber = a.trips[0]?.busDetails?.tripNumber || '';
+      const bNumber = b.trips[0]?.busDetails?.tripNumber || '';
+      
+      // Extract base number and suffix (e.g., "022a" -> 22, "a")
+      const getNumberAndSuffix = (tripNumber: string) => {
+        const match = tripNumber.match(/^(\d+)([a-z]?)$/);
+        if (match) {
+          return {
+            number: parseInt(match[1]),
+            suffix: match[2] || ''
+          };
+        }
+        return { number: 999, suffix: '' };
+      };
+      
+      const aInfo = getNumberAndSuffix(aNumber);
+      const bInfo = getNumberAndSuffix(bNumber);
+      
+      // First sort by number
+      if (aInfo.number !== bInfo.number) {
+        return aInfo.number - bInfo.number;
+      }
+      
+      // Then by suffix (a before b)
+      return aInfo.suffix.localeCompare(bInfo.suffix);
+    });
+  };
+
   // Organize data by date
   const organizedData = () => {
     const allDates = new Set<string>();
@@ -838,7 +870,7 @@ const Index = () => {
 
     return sortedDates.map(dateKey => ({
       dateKey,
-      plannedGroups: plannedGroupsByDate[dateKey] || [],
+      plannedGroups: sortGroupsWithSplits(plannedGroupsByDate[dateKey] || []),
       hinfahrten: hinfahrtenByDate[dateKey] || [],
       rueckfahrten: rueckfahrtenByDate[addDays(dateKey, 1)] || [],
     }));
