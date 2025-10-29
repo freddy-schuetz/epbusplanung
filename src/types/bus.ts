@@ -44,6 +44,7 @@ export interface BusGroup {
   split_group_id: string | null;
   part_number: number;
   total_parts: number;
+  connected_trip_id: string | null;
 }
 
 export interface Stop {

@@ -7,6 +7,7 @@ import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ConnectingTripDialog } from './ConnectingTripDialog';
 
 interface GroupCardProps {
   groupId: string;
@@ -20,6 +21,8 @@ interface GroupCardProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
+  allTrips?: Trip[];
+  onConnectTrip?: (currentGroupId: string, targetGroupId: string) => void;
 }
 
 export const GroupCard = ({
@@ -34,11 +37,15 @@ export const GroupCard = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
+  allTrips = [],
+  onConnectTrip,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
+  const [showConnectDialog, setShowConnectDialog] = useState(false);
+  const [connectedGroup, setConnectedGroup] = useState<BusGroup | null>(null);
   const firstTrip = trips[0];
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
@@ -219,6 +226,17 @@ export const GroupCard = ({
           
           if (linked) setLinkedGroups(linked);
         }
+
+        // If this has a connected trip, fetch that group
+        if (data.connected_trip_id) {
+          const { data: connected } = await supabase
+            .from('bus_groups')
+            .select('*')
+            .eq('id', data.connected_trip_id)
+            .single();
+          
+          if (connected) setConnectedGroup(connected);
+        }
       }
     };
     
@@ -299,6 +317,22 @@ export const GroupCard = ({
         {/* Bus name */}
         {busInfo && <span className="text-sm whitespace-nowrap">{busInfo}</span>}
         
+        {/* Connected trip badge */}
+        {connectedGroup && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge className="bg-blue-500 hover:bg-blue-600 text-white text-xs">
+                  🔗 Verknüpft
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Anschlussfahrt: Bus {connectedGroup.trip_number}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
         {/* Status icon only */}
         <TooltipProvider>
           <Tooltip>
@@ -341,6 +375,29 @@ export const GroupCard = ({
               </div>
             </div>
           )}
+
+          {connectedGroup && (
+            <div className="bg-card border-2 border-blue-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🔗</span>
+                <h4 className="font-semibold">Anschlussfahrt:</h4>
+              </div>
+              <div className="text-sm">
+                <p>Bus {connectedGroup.trip_number} fährt weiter von anderem Ort</p>
+              </div>
+            </div>
+          )}
+
+          {/* Connecting trip button - only for completed trips */}
+          {firstTrip.planningStatus === 'completed' && onConnectTrip && (
+            <Button
+              onClick={() => setShowConnectDialog(true)}
+              className="bg-blue-500 hover:bg-blue-600"
+              size="sm"
+            >
+              🔗 Anschlussfahrt
+            </Button>
+          )}
           
           <GroupForm
             groupId={groupId}
@@ -353,6 +410,21 @@ export const GroupCard = ({
             onSplitGroup={onSplitGroup}
           />
         </div>
+      )}
+
+      {busGroup && (
+        <ConnectingTripDialog
+          isOpen={showConnectDialog}
+          onClose={() => setShowConnectDialog(false)}
+          currentGroup={busGroup}
+          currentTrips={trips}
+          allTrips={allTrips}
+          onSave={(targetGroupId) => {
+            if (onConnectTrip) {
+              onConnectTrip(groupId, targetGroupId);
+            }
+          }}
+        />
       )}
     </div>
   );
