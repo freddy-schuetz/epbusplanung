@@ -976,6 +976,7 @@ const Index = () => {
                   rueckfahrten={rueckfahrten}
                   nextDayKey={nextDayKey}
                   stops={stops}
+                  allTrips={trips}
                   selectedTrips={selectedTrips}
                   onToggleSelection={toggleSelection}
                   onUpdateGroup={updateGroup}
@@ -985,6 +986,7 @@ const Index = () => {
                   onUnlockGroup={unlockGroup}
                   onDissolveGroup={dissolveGroup}
                   onSplitGroup={handleSplitGroup}
+                  onHubCreated={loadAllData}
                 />
               );
             })

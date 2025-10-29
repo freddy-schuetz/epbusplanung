@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GroupForm } from './GroupForm';
+import { HubDialog } from './HubDialog';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +13,7 @@ interface GroupCardProps {
   groupId: string;
   trips: Trip[];
   stops: Stop[];
+  allTrips: Trip[];
   displayMode?: 'departure' | 'return';
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
@@ -20,12 +22,14 @@ interface GroupCardProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
+  onHubCreated: () => void;
 }
 
 export const GroupCard = ({
   groupId,
   trips,
   stops,
+  allTrips,
   displayMode = 'departure',
   onUpdateGroup,
   onCompleteGroup,
@@ -34,11 +38,13 @@ export const GroupCard = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
+  onHubCreated,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
+  const [showHubDialog, setShowHubDialog] = useState(false);
   const firstTrip = trips[0];
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
@@ -216,7 +222,7 @@ export const GroupCard = ({
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
     
-    // Fetch bus group data to get trip_number and split info
+    // Fetch bus group data to get trip_number, split info, and hub info
     const fetchBusGroup = async () => {
       const { data } = await supabase
         .from('bus_groups')
@@ -225,7 +231,7 @@ export const GroupCard = ({
         .single();
       
       if (data) {
-        setBusGroup(data);
+        setBusGroup(data as BusGroup);
         
         // If this is a split group, fetch linked groups
         if (data.split_group_id) {
@@ -235,7 +241,7 @@ export const GroupCard = ({
             .eq('split_group_id', data.split_group_id)
             .neq('id', groupId);
           
-          if (linked) setLinkedGroups(linked);
+          if (linked) setLinkedGroups(linked as BusGroup[]);
         }
       }
     };
@@ -248,6 +254,12 @@ export const GroupCard = ({
     const bus = buses.find(b => b.id === firstTrip.busDetails!.busId);
     if (bus) busInfo = bus.name;
   }
+
+  // Get unique stop count for this group
+  const tripStops = stops.filter(stop => 
+    trips.some(trip => trip.reisecode === stop.Reisecode)
+  );
+  const uniqueStopCount = new Set(tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)).size;
 
 
   return (
@@ -266,6 +278,22 @@ export const GroupCard = ({
             <span>🚌</span>
             <span className="font-bold">{busGroup.trip_number}</span>
           </div>
+        )}
+        
+        {/* Hub badge */}
+        {busGroup?.hub_role && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
+                  🔄 {busGroup.hub_role === 'incoming' ? '→' : '←'} {busGroup.hub_location}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{busGroup.hub_role === 'incoming' ? 'Ankunft' : 'Abfahrt'} am Hub</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         
         {/* Split badge */}
@@ -359,6 +387,17 @@ export const GroupCard = ({
       
       {isExpanded && (
         <div className="bg-muted/30 p-5 space-y-4">
+          {/* Hub button - only for trips with 3+ stops and no hub role */}
+          {uniqueStopCount >= 3 && !busGroup?.hub_role && firstTrip.planningStatus === 'completed' && (
+            <Button
+              onClick={() => setShowHubDialog(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white w-full"
+              size="sm"
+            >
+              🔄 Hub definieren
+            </Button>
+          )}
+          
           {isSplitGroup && linkedGroups.length > 0 && (
             <div className="bg-card border-2 border-orange-500/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -388,6 +427,15 @@ export const GroupCard = ({
           />
         </div>
       )}
+      
+      <HubDialog
+        open={showHubDialog}
+        onClose={() => setShowHubDialog(false)}
+        currentGroup={{ id: groupId, trips }}
+        allTrips={allTrips}
+        stops={stops}
+        onHubCreated={onHubCreated}
+      />
     </div>
   );
 };

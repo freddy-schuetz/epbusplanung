@@ -14,6 +14,7 @@ interface DateRowProps {
   rueckfahrten: Trip[];
   nextDayKey: string;
   stops: Stop[];
+  allTrips: Trip[];
   selectedTrips: Set<string>;
   onToggleSelection: (tripId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
@@ -23,6 +24,7 @@ interface DateRowProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
+  onHubCreated: () => void;
 }
 
 export const DateRow = ({
@@ -34,6 +36,7 @@ export const DateRow = ({
   rueckfahrten,
   nextDayKey,
   stops,
+  allTrips,
   selectedTrips,
   onToggleSelection,
   onUpdateGroup,
@@ -43,6 +46,7 @@ export const DateRow = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
+  onHubCreated,
 }: DateRowProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -107,15 +111,17 @@ export const DateRow = ({
                     groupId={group.groupId}
                     trips={group.trips}
                     stops={stops}
+                    allTrips={allTrips}
                     displayMode={group.displayMode}
                     onUpdateGroup={onUpdateGroup}
                     onCompleteGroup={onCompleteGroup}
                     onSetGroupToDraft={onSetGroupToDraft}
-                  onLockGroup={onLockGroup}
-                  onUnlockGroup={onUnlockGroup}
-                  onDissolveGroup={onDissolveGroup}
-                  onSplitGroup={onSplitGroup}
-                />
+                    onLockGroup={onLockGroup}
+                    onUnlockGroup={onUnlockGroup}
+                    onDissolveGroup={onDissolveGroup}
+                    onSplitGroup={onSplitGroup}
+                    onHubCreated={onHubCreated}
+                  />
                 ))}
               </>
             )}
