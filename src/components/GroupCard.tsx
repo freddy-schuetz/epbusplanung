@@ -214,7 +214,7 @@ export const GroupCard = ({
         .single();
       
       if (data) {
-        setBusGroup(data);
+        setBusGroup(data as BusGroup);
         
         // If this is a split group, fetch linked groups
         if (data.split_group_id) {
@@ -224,18 +224,18 @@ export const GroupCard = ({
             .eq('split_group_id', data.split_group_id)
             .neq('id', groupId);
           
-          if (linked) setLinkedGroups(linked);
+          if (linked) setLinkedGroups(linked as BusGroup[]);
         }
 
         // If this has a connected trip, fetch that group
-        if (data.connected_trip_id) {
+        if ((data as any).connected_trip_id) {
           const { data: connected } = await supabase
             .from('bus_groups')
             .select('*')
-            .eq('id', data.connected_trip_id)
+            .eq('id', (data as any).connected_trip_id)
             .single();
           
-          if (connected) setConnectedGroup(connected);
+          if (connected) setConnectedGroup(connected as BusGroup);
         }
       }
     };

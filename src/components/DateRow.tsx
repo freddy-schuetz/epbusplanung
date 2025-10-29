@@ -23,6 +23,8 @@ interface DateRowProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
+  allTrips?: Trip[];
+  onConnectTrip?: (currentGroupId: string, targetGroupId: string) => void;
 }
 
 export const DateRow = ({
@@ -43,6 +45,8 @@ export const DateRow = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
+  allTrips = [],
+  onConnectTrip,
 }: DateRowProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -115,6 +119,8 @@ export const DateRow = ({
                   onUnlockGroup={onUnlockGroup}
                   onDissolveGroup={onDissolveGroup}
                   onSplitGroup={onSplitGroup}
+                  allTrips={allTrips}
+                  onConnectTrip={onConnectTrip}
                 />
                 ))}
               </>

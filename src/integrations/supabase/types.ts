@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           accommodation: string | null
           bus_id: string | null
+          connected_trip_id: string | null
           created_at: string | null
           id: string
           km_hinweg: string | null
@@ -35,6 +36,7 @@ export type Database = {
         Insert: {
           accommodation?: string | null
           bus_id?: string | null
+          connected_trip_id?: string | null
           created_at?: string | null
           id?: string
           km_hinweg?: string | null
@@ -52,6 +54,7 @@ export type Database = {
         Update: {
           accommodation?: string | null
           bus_id?: string | null
+          connected_trip_id?: string | null
           created_at?: string | null
           id?: string
           km_hinweg?: string | null
@@ -72,6 +75,13 @@ export type Database = {
             columns: ["bus_id"]
             isOneToOne: false
             referencedRelation: "buses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bus_groups_connected_trip_id_fkey"
+            columns: ["connected_trip_id"]
+            isOneToOne: false
+            referencedRelation: "bus_groups"
             referencedColumns: ["id"]
           },
         ]
