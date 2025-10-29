@@ -138,6 +138,16 @@ export const GroupForm = ({
     // Notes is not JSON or doesn't contain stop keys - use all stops
   }
 
+  // DEBUG: Log trip data first
+  console.log('[GroupForm] === PAX MISMATCH DEBUG ===');
+  console.log('[GroupForm] Group ID:', groupId);
+  console.log('[GroupForm] Trips in group:', trips.length);
+  trips.forEach(trip => {
+    console.log(`  - ${trip.reisecode} (${trip.direction}): ${trip.buchungen} PAX`);
+  });
+  console.log('[GroupForm] Total PAX from trips:', trips.reduce((sum, t) => sum + t.buchungen, 0));
+  console.log('[GroupForm] All stops count:', stops.length);
+  
   // Aggregate stops for this group - match by reisecode AND direction
   let groupStops = stops.filter(stop => 
     trips.some(trip => {
@@ -150,12 +160,29 @@ export const GroupForm = ({
     })
   );
   
+  // Debug: Log filtered stops with their trip IDs
+  console.log('[GroupForm] Filtered group stops:', groupStops.length);
+  const stopsByReisecode = groupStops.reduce((acc, stop) => {
+    acc[stop.Reisecode] = (acc[stop.Reisecode] || 0) + (stop.Anzahl || 0);
+    return acc;
+  }, {} as Record<string, number>);
+  console.log('[GroupForm] Stop PAX by reisecode:', stopsByReisecode);
+  
+  // Check for duplicate stops (same time + location)
+  const stopKeys = groupStops.map(s => `${s.Zeit}-${s['Zustieg/Ausstieg']}-${s.Anzahl}`);
+  const uniqueStopKeys = new Set(stopKeys);
+  if (stopKeys.length !== uniqueStopKeys.size) {
+    console.warn('[GroupForm] ⚠️ DUPLICATE STOPS DETECTED!');
+    console.log('[GroupForm] Total stops:', stopKeys.length, 'Unique:', uniqueStopKeys.size);
+  }
+  
   // Debug: Log stops by direction
   const hinStops = groupStops.filter(s => s.Beförderung?.toLowerCase().includes('hinfahrt'));
   const rueckStops = groupStops.filter(s => s.Beförderung?.toLowerCase().includes('rückfahrt'));
   console.log('[GroupForm] Hin stops:', hinStops.length, 'PAX:', hinStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
   console.log('[GroupForm] Rück stops:', rueckStops.length, 'PAX:', rueckStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
-  console.log('[GroupForm] Total stops:', groupStops.length, 'Total PAX:', groupStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
+  console.log('[GroupForm] Total stops PAX:', groupStops.reduce((sum, s) => sum + (s.Anzahl || 0), 0));
+  console.log('[GroupForm] === END DEBUG ===');
 
   // If this is a split group with assigned stops, filter to only show those stops
   if (assignedStopKeys && assignedStopKeys.length > 0) {
