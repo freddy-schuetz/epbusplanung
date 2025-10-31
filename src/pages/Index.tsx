@@ -1000,7 +1000,7 @@ const Index = () => {
       <div className="max-w-[1800px] mx-auto bg-card/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-5xl font-bold gradient-primary bg-clip-text text-transparent">
-            🚌 Busplanungs-Management System 5.1
+            🚌 E&P Busplanungs-Management System
           </h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user.email}</span>
