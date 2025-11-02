@@ -28,7 +28,6 @@ export interface Trip {
   planningStatus: 'unplanned' | 'draft' | 'completed' | 'locked';
   groupId: string | null;
   busDetails: BusDetails | null;
-  stops?: Stop[];
 }
 
 export interface BusGroup {
@@ -45,9 +44,6 @@ export interface BusGroup {
   split_group_id: string | null;
   part_number: number;
   total_parts: number;
-  hub_role: 'incoming' | 'outgoing' | null;
-  hub_id: string | null;
-  hub_location: string | null;
 }
 
 export interface Stop {

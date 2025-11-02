@@ -3,21 +3,16 @@ import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GroupForm } from './GroupForm';
-import { HubDialog } from './HubDialog';
 import { Trip, Bus, BusGroup, Stop } from '@/types/bus';
 import { fetchBuses } from '@/lib/supabaseOperations';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from 'sonner';
 
 interface GroupCardProps {
   groupId: string;
   trips: Trip[];
   stops: Stop[];
-  allTrips: Trip[];
-  allBusGroups: BusGroup[];
   displayMode?: 'departure' | 'return';
-  refreshKey?: number;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -25,17 +20,13 @@ interface GroupCardProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
-  onHubCreated: () => void;
 }
 
 export const GroupCard = ({
   groupId,
   trips,
   stops,
-  allTrips,
-  allBusGroups,
   displayMode = 'departure',
-  refreshKey = 0,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
@@ -43,13 +34,11 @@ export const GroupCard = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
-  onHubCreated,
 }: GroupCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [busGroup, setBusGroup] = useState<BusGroup | null>(null);
   const [linkedGroups, setLinkedGroups] = useState<BusGroup[]>([]);
-  const [showHubDialog, setShowHubDialog] = useState(false);
   const firstTrip = trips[0];
   const hasHin = trips.some(t => t.direction === 'hin');
   const hasRueck = trips.some(t => t.direction === 'rueck');
@@ -84,24 +73,6 @@ export const GroupCard = ({
     const parts = tripName.split(' - ');
     return parts[0]?.trim() || 'Ziel';
   };
-
-  // Extract origin from trip name (same as destination, but used for return trips)
-  const extractOrigin = (tripName: string) => {
-    const parts = tripName.split(' - ');
-    return parts[0]?.trim() || 'Start';
-  };
-
-  // Check if return trip starts from different location
-  const checkLocationChange = () => {
-    if (hinTrips.length > 0 && rueckTrips.length > 0) {
-      const hinDestination = extractDestination(hinTrips[0].reise);
-      const rueckOrigin = extractOrigin(rueckTrips[0].reise);
-      return hinDestination !== rueckOrigin;
-    }
-    return false;
-  };
-
-  const hasLocationChange = checkLocationChange();
 
   // Calculate route displays for both directions
   const calculateRoutes = () => {
@@ -141,19 +112,14 @@ export const GroupCard = ({
         return timeA.localeCompare(timeB);
       });
       
-      // Get unique stop names in chronological order (ALL stops, not excluding any)
-      const stopNames = [...new Set(sortedHinStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
+      // Get unique stop names in chronological order
+      const stopNames = [...new Set(sortedHinStops.slice(0, -1).map(s => s['Zustieg/Ausstieg']))];
       const destination = getDestinationWithCodes(hinTrips);
       
       if (sortedHinStops.length > 0) {
         const firstTime = sortedHinStops[0].Zeit || '';
         const firstStop = stopNames[0];
-        // Show all stops except first (already shown with time) and last (if it matches destination)
-        const lastStopMatchesDestination = stopNames[stopNames.length - 1] && 
-          destination.startsWith(stopNames[stopNames.length - 1]);
-        const middleStops = lastStopMatchesDestination 
-          ? stopNames.slice(1, -1) 
-          : stopNames.slice(1);
+        const middleStops = stopNames.slice(1);
         
         hinRoute = (
           <>
@@ -195,17 +161,14 @@ export const GroupCard = ({
         return timeA.localeCompare(timeB);
       });
       
-      // Get unique stop names (ALL stops)
-      const stopNames = [...new Set(sortedRueckStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
+      // Get unique stop names
+      const stopNames = [...new Set(sortedRueckStops.map(s => s['Zustieg/Ausstieg']))];
       const origin = getDestinationWithCodes(rueckTrips);
       
       if (sortedRueckStops.length > 0) {
         const firstStop = origin;
-        // Check if first stopName matches origin to avoid duplication
-        const firstStopMatchesOrigin = stopNames[0] && origin.startsWith(stopNames[0]);
-        const adjustedStopNames = firstStopMatchesOrigin ? stopNames.slice(1) : stopNames;
-        const middleStops = adjustedStopNames.slice(0, -1);
-        const lastStop = adjustedStopNames[adjustedStopNames.length - 1];
+        const middleStops = stopNames.slice(0, -1);
+        const lastStop = stopNames[stopNames.length - 1];
         
         rueckRoute = (
           <>
@@ -217,12 +180,8 @@ export const GroupCard = ({
                 <span className="text-sm font-normal opacity-80">{stop}</span>
               </span>
             ))}
-            {lastStop && (
-              <>
-                <span> → </span>
-                <span className="font-bold">{lastStop}</span>
-              </>
-            )}
+            <span> → </span>
+            <span className="font-bold">{lastStop}</span>
           </>
         );
       }
@@ -239,7 +198,7 @@ export const GroupCard = ({
   useEffect(() => {
     fetchBuses().then(setBuses).catch(console.error);
     
-    // Fetch bus group data to get trip_number, split info, and hub info
+    // Fetch bus group data to get trip_number and split info
     const fetchBusGroup = async () => {
       const { data } = await supabase
         .from('bus_groups')
@@ -248,7 +207,7 @@ export const GroupCard = ({
         .single();
       
       if (data) {
-        setBusGroup(data as BusGroup);
+        setBusGroup(data);
         
         // If this is a split group, fetch linked groups
         if (data.split_group_id) {
@@ -258,7 +217,7 @@ export const GroupCard = ({
             .eq('split_group_id', data.split_group_id)
             .neq('id', groupId);
           
-          if (linked) setLinkedGroups(linked as BusGroup[]);
+          if (linked) setLinkedGroups(linked);
         }
       }
     };
@@ -271,57 +230,6 @@ export const GroupCard = ({
     const bus = buses.find(b => b.id === firstTrip.busDetails!.busId);
     if (bus) busInfo = bus.name;
   }
-
-  // Get unique stop count for this group
-  const tripStops = stops.filter(stop => 
-    trips.some(trip => trip.reisecode === stop.Reisecode)
-  );
-  const uniqueStopCount = new Set(tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)).size;
-
-  // Check if hub creation is possible (other trips share stops with this group)
-  const canCreateHub = () => {
-    if (!tripStops || tripStops.length < 3) return false;
-    // Allow hub button even if already has hub (to edit/remove)
-    if (firstTrip.planningStatus === 'unplanned') return false; // Must be planned (draft/completed/locked)
-    
-    const currentDate = trips[0]?.datum;
-    if (!currentDate) return false;
-    
-    // Get ALL stop names from current group (not excluding first/last for more matches)
-    const myStopNames = [...new Set(
-      tripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean)
-    )];
-    
-    if (myStopNames.length === 0) return false;
-    
-    console.log('[GroupCard] Checking hub possibility for trip', trips[0].reisecode, 'with stops:', myStopNames);
-    
-    // Check if any OTHER PLANNED trip on same date shares any stops
-    const hasCommonStops = allTrips.some(trip => {
-      // Must be planned (not unplanned)
-      if (trip.planningStatus === 'unplanned') return false;
-      // Must be on same date
-      if (trip.datum !== currentDate) return false;
-      // Skip current group's trips
-      if (trips.some(t => t.id === trip.id)) return false;
-      
-      // Check if this trip has any common stops
-      const otherTripStops = stops.filter(s => s.Reisecode === trip.reisecode);
-      const otherStopNames = [...new Set(otherTripStops.map(s => s['Zustieg/Ausstieg']).filter(Boolean))];
-      
-      const hasCommon = myStopNames.some(myStop => otherStopNames.includes(myStop));
-      
-      if (hasCommon) {
-        const commonStops = myStopNames.filter(s => otherStopNames.includes(s));
-        console.log('[GroupCard] ✅ Found common stops between', trips[0].reisecode, 'and', trip.reisecode, ':', commonStops);
-      }
-      
-      return hasCommon;
-    });
-    
-    console.log('[GroupCard] Hub possible for', trips[0].reisecode, ':', hasCommonStops);
-    return hasCommonStops;
-  };
 
 
   return (
@@ -342,24 +250,6 @@ export const GroupCard = ({
           </div>
         )}
         
-        {/* Hub badge */}
-        {busGroup?.hub_role && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
-                  {busGroup.hub_role === 'incoming' 
-                    ? `→ ${busGroup.hub_location} 🔄` 
-                    : `🔄 ${busGroup.hub_location} →`}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{busGroup.hub_role === 'incoming' ? 'Hub-Ankunft' : 'Hub-Weiterfahrt'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        
         {/* Split badge */}
         {isSplitGroup && (
           <Badge className="bg-orange-500 hover:bg-orange-600 text-white text-xs">
@@ -378,22 +268,6 @@ export const GroupCard = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p>Bus bleibt {standbusDays} Tage vor Ort</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        
-        {/* Location change badge */}
-        {hasLocationChange && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Badge className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs">
-                  📍 Ortswechsel
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Rückfahrt startet von anderem Ort</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -451,58 +325,6 @@ export const GroupCard = ({
       
       {isExpanded && (
         <div className="bg-muted/30 p-5 space-y-4">
-          {/* Hub button - only shown when other trips can meet at common stops */}
-          {canCreateHub() && (
-            <div className="space-y-2">
-              <Button
-                onClick={() => setShowHubDialog(true)}
-                className="bg-orange-500 hover:bg-orange-600 text-white w-full"
-                size="sm"
-              >
-                {busGroup?.hub_role ? '🔄 Hub bearbeiten' : '🔄 Hub definieren'}
-              </Button>
-              
-              {busGroup?.hub_role && busGroup?.hub_id && (
-                <Button
-                  onClick={async () => {
-                    try {
-                      console.log('[GroupCard] 🔍 Deleting hub:', busGroup.hub_id);
-                      
-                      // Remove hub from all groups with the same hub_id
-                      const { error } = await supabase
-                        .from('bus_groups')
-                        .update({
-                          hub_role: null,
-                          hub_id: null,
-                          hub_location: null,
-                        })
-                        .eq('hub_id', busGroup.hub_id);
-                      
-                      if (error) {
-                        toast.error('Fehler beim Löschen: ' + error.message);
-                      } else {
-                        toast.success('Hub erfolgreich gelöscht');
-                        
-                        // Trigger parent refresh to update stops
-                        if (onHubCreated) {
-                          await onHubCreated();
-                        }
-                      }
-                    } catch (err) {
-                      console.error('Hub removal error:', err);
-                      toast.error('Fehler beim Löschen des Hubs');
-                    }
-                  }}
-                  variant="outline"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full border-red-300"
-                  size="sm"
-                >
-                  🗑️ Hub löschen
-                </Button>
-              )}
-            </div>
-          )}
-          
           {isSplitGroup && linkedGroups.length > 0 && (
             <div className="bg-card border-2 border-orange-500/30 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -521,11 +343,9 @@ export const GroupCard = ({
           )}
           
           <GroupForm
-            key={`form-${groupId}-${refreshKey}`}
             groupId={groupId}
             trips={trips}
             stops={stops}
-            refreshKey={refreshKey}
             onUpdateGroup={onUpdateGroup}
             onCompleteGroup={onCompleteGroup}
             onSetGroupToDraft={onSetGroupToDraft}
@@ -534,16 +354,6 @@ export const GroupCard = ({
           />
         </div>
       )}
-      
-      <HubDialog
-        open={showHubDialog}
-        onClose={() => setShowHubDialog(false)}
-        currentGroup={{ id: groupId, trips }}
-        allTrips={allTrips}
-        allBusGroups={allBusGroups}
-        stops={stops}
-        onHubCreated={onHubCreated}
-      />
     </div>
   );
 };

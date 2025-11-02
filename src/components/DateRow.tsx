@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { GroupCard } from './GroupCard';
 import { TripCard } from './TripCard';
 import { DropZone } from './DropZone';
-import { Trip, Stop, BusGroup } from '@/types/bus';
+import { Trip, Stop } from '@/types/bus';
 
 interface DateRowProps {
   date: string;
@@ -14,10 +14,7 @@ interface DateRowProps {
   rueckfahrten: Trip[];
   nextDayKey: string;
   stops: Stop[];
-  allTrips: Trip[];
-  allBusGroups: BusGroup[];
   selectedTrips: Set<string>;
-  refreshKey?: number;
   onToggleSelection: (tripId: string) => void;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
@@ -26,7 +23,6 @@ interface DateRowProps {
   onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
-  onHubCreated: () => void;
 }
 
 export const DateRow = ({
@@ -38,10 +34,7 @@ export const DateRow = ({
   rueckfahrten,
   nextDayKey,
   stops,
-  allTrips,
-  allBusGroups,
   selectedTrips,
-  refreshKey = 0,
   onToggleSelection,
   onUpdateGroup,
   onCompleteGroup,
@@ -50,7 +43,6 @@ export const DateRow = ({
   onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
-  onHubCreated,
 }: DateRowProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -111,22 +103,19 @@ export const DateRow = ({
                 </div>
                 {plannedGroups.map(group => (
                   <GroupCard
-                    key={`${group.groupId}-${group.displayMode || 'departure'}-${refreshKey}`}
+                    key={`${group.groupId}-${group.displayMode || 'departure'}`}
                     groupId={group.groupId}
                     trips={group.trips}
                     stops={stops}
-                    allTrips={allTrips}
-                    allBusGroups={allBusGroups}
                     displayMode={group.displayMode}
                     onUpdateGroup={onUpdateGroup}
                     onCompleteGroup={onCompleteGroup}
                     onSetGroupToDraft={onSetGroupToDraft}
-                    onLockGroup={onLockGroup}
-                    onUnlockGroup={onUnlockGroup}
-                    onDissolveGroup={onDissolveGroup}
-                    onSplitGroup={onSplitGroup}
-                    onHubCreated={onHubCreated}
-                  />
+                  onLockGroup={onLockGroup}
+                  onUnlockGroup={onUnlockGroup}
+                  onDissolveGroup={onDissolveGroup}
+                  onSplitGroup={onSplitGroup}
+                />
                 ))}
               </>
             )}
@@ -158,7 +147,7 @@ export const DateRow = ({
 
             <div className="bg-card rounded-lg p-3 border">
               <div className="bg-destructive/10 text-destructive font-semibold p-2 rounded-lg mb-3 text-center border border-destructive/30 text-sm">
-                🔴 Rückfahrten {date}
+                🔴 Rückfahrten {nextDayKey}
               </div>
               <div className="space-y-2">
                 {sortedRueckfahrten.length > 0 ? (

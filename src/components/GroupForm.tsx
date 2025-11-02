@@ -23,7 +23,6 @@ interface GroupFormProps {
   groupId: string;
   trips: Trip[];
   stops: Stop[];
-  refreshKey?: number;
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
@@ -35,18 +34,14 @@ export const GroupForm = ({
   groupId,
   trips,
   stops,
-  refreshKey = 0,
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
   onDissolveGroup,
   onSplitGroup,
 }: GroupFormProps) => {
-  console.log('[GroupForm] 🔄 Component rendered with refreshKey:', refreshKey);
-  console.log('[GroupForm] 🔍 Received stops count:', stops.length);
   const firstTrip = trips[0];
-  const isLocked = firstTrip.planningStatus === 'locked';
-  const isReadonly = firstTrip.planningStatus === 'completed' || firstTrip.planningStatus === 'locked';
+  const isLocked = firstTrip.planningStatus === 'locked' || firstTrip.planningStatus === 'completed';
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
 
   // Check for Standbus (bus stays on-site)
@@ -93,13 +88,6 @@ export const GroupForm = ({
       setBusDetails(firstTrip.busDetails);
     }
   }, [firstTrip.busDetails]);
-
-  // Force re-processing when stops change or refreshKey changes
-  useEffect(() => {
-    console.log('[GroupForm] 🔄 Stops or refreshKey changed - forcing re-render');
-    console.log('[GroupForm] 🔍 New stops count:', stops.length);
-    console.log('[GroupForm] 🔍 New refreshKey:', refreshKey);
-  }, [stops, refreshKey]);
 
   const handleSave = () => {
     onUpdateGroup(groupId, { busDetails });
@@ -159,7 +147,6 @@ export const GroupForm = ({
   });
   console.log('[GroupForm] Total PAX from trips:', trips.reduce((sum, t) => sum + t.buchungen, 0));
   console.log('[GroupForm] All stops count:', stops.length);
-  console.log('[GroupForm] 🔍 Sample stop structure:', stops.length > 0 ? stops[0] : 'No stops');
   
   // Aggregate stops for this group - match by reisecode AND direction
   let groupStops = stops.filter(stop => 
@@ -175,12 +162,6 @@ export const GroupForm = ({
   
   // Debug: Log filtered stops with their trip IDs
   console.log('[GroupForm] Filtered group stops:', groupStops.length);
-  console.log('[GroupForm] 🔍 First 3 filtered stops:', groupStops.slice(0, 3).map(s => ({
-    location: s['Zustieg/Ausstieg'],
-    time: s.Zeit,
-    pax: s.Anzahl,
-    reisecode: s.Reisecode,
-  })));
   const stopsByReisecode = groupStops.reduce((acc, stop) => {
     acc[stop.Reisecode] = (acc[stop.Reisecode] || 0) + (stop.Anzahl || 0);
     return acc;
@@ -369,7 +350,7 @@ export const GroupForm = ({
               const autoLuggage = selectedBus && selectedBus.seats >= 70 ? 'Anhänger' : 'ohne';
               setBusDetails({ ...busDetails, busId: value, luggage: autoLuggage });
             }}
-            disabled={isReadonly}
+            disabled={isLocked}
           >
             <SelectTrigger id={`busId-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -399,7 +380,7 @@ export const GroupForm = ({
             type="number"
             value={busDetails.kmHinweg}
             onChange={(e) => setBusDetails({ ...busDetails, kmHinweg: e.target.value })}
-            disabled={isReadonly}
+            disabled={isLocked}
           />
         </div>
 
@@ -410,7 +391,7 @@ export const GroupForm = ({
             type="number"
             value={busDetails.kmRueckweg}
             onChange={(e) => setBusDetails({ ...busDetails, kmRueckweg: e.target.value })}
-            disabled={isReadonly}
+            disabled={isLocked}
           />
         </div>
 
@@ -419,7 +400,7 @@ export const GroupForm = ({
           <Select
             value={busDetails.luggage}
             onValueChange={(value) => setBusDetails({ ...busDetails, luggage: value })}
-            disabled={isReadonly}
+            disabled={isLocked}
           >
             <SelectTrigger id={`luggage-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -437,7 +418,7 @@ export const GroupForm = ({
           <Select
             value={busDetails.accommodation}
             onValueChange={(value) => setBusDetails({ ...busDetails, accommodation: value })}
-            disabled={isReadonly}
+            disabled={isLocked}
           >
             <SelectTrigger id={`accommodation-${groupId}`}>
               <SelectValue placeholder="-- Bitte wählen --" />
@@ -457,32 +438,32 @@ export const GroupForm = ({
             rows={3}
             value={busDetails.notes}
             onChange={(e) => setBusDetails({ ...busDetails, notes: e.target.value })}
-            disabled={isReadonly}
+            disabled={isLocked}
           />
         </div>
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90" disabled={isReadonly}>
-          💾 Speichern
-        </Button>
-        {firstTrip.planningStatus === 'completed' ? (
-          <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
-            ↩️ Zurück auf Entwurf
+      {!isLocked ? (
+        <div className="flex gap-3 flex-wrap">
+          <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
+            💾 Speichern
           </Button>
-        ) : (
-          <Button onClick={handleComplete} className="gradient-primary" disabled={isReadonly}>
-            ✅ Fertigstellen
+          {firstTrip.planningStatus === 'completed' ? (
+            <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+              ↩️ Zurück auf Entwurf
+            </Button>
+          ) : (
+            <Button onClick={handleComplete} className="gradient-primary">
+              ✅ Fertigstellen
+            </Button>
+          )}
+          <Button onClick={handleDissolve} variant="destructive">
+            ❌ Auflösen
           </Button>
-        )}
-        <Button onClick={handleDissolve} variant="destructive" disabled={isReadonly}>
-          ❌ Auflösen
-        </Button>
-      </div>
-      
-      {isLocked && (
+        </div>
+      ) : (
         <Alert>
-          <AlertDescription>🔒 Diese Busplanung ist gesperrt (nur bei Status 'locked').</AlertDescription>
+          <AlertDescription>🔒 Diese Busplanung ist gesperrt.</AlertDescription>
         </Alert>
       )}
 

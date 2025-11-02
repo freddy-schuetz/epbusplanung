@@ -7,7 +7,7 @@ import { DateRow } from '@/components/DateRow';
 import { TripCard } from '@/components/TripCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Trip, Stop, APIResponse, APIBooking, BusGroup } from '@/types/bus';
+import { Trip, Stop, APIResponse, APIBooking } from '@/types/bus';
 import { convertDateToAPI, parseGermanDate, getWeekdayName, getTodayString, addDays } from '@/lib/dateUtils';
 import { exportToCSV } from '@/lib/csvExport';
 import { toast } from 'sonner';
@@ -25,7 +25,6 @@ const Index = () => {
   const [filteredTrips, setFilteredTrips] = useState<Trip[]>([]);
   const [selectedTrips, setSelectedTrips] = useState<Set<string>>(new Set());
   const [nextGroupId, setNextGroupId] = useState(1);
-  const [busGroups, setBusGroups] = useState<BusGroup[]>([]);
   
   const [dateFrom, setDateFrom] = useState('2025-11-01');
   const [dateTo, setDateTo] = useState('2026-04-30');
@@ -33,7 +32,6 @@ const Index = () => {
   const [filterDirection, setFilterDirection] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [activeDragTrip, setActiveDragTrip] = useState<Trip | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -114,23 +112,6 @@ const Index = () => {
       const data = await fetchTrips(user.id);
       const busGroupsData = await fetchBusGroups(user.id);
       
-      console.log('[Index] 🔍 DEBUG: Fetched bus groups:', busGroupsData.length);
-      
-      // Log each group's hub info and stops
-      busGroupsData.forEach(bg => {
-        console.log(`[Index] 🔍 Group ${bg.trip_number}:`, {
-          hub_role: bg.hub_role,
-          hub_location: bg.hub_location,
-          hub_id: bg.hub_id,
-        });
-      });
-      
-      // Store bus groups in state for Hub dialog (with proper typing)
-      setBusGroups(busGroupsData.map(bg => ({
-        ...bg,
-        hub_role: bg.hub_role as 'incoming' | 'outgoing' | null,
-      })));
-      
       // Create a map of bus_groups by id for easy lookup
       const busGroupsMap = new Map(
         busGroupsData.map(bg => [
@@ -147,56 +128,20 @@ const Index = () => {
         ])
       );
       
-      // Map trips
-      const mappedTrips = data.map((dbTrip: any) => {
-        console.log(`[Index] 🔍 Trip ${dbTrip.reisecode} stops from DB:`, dbTrip.stops);
-        
-        return {
-          id: dbTrip.id,
-          direction: dbTrip.direction as 'hin' | 'rueck',
-          reisecode: dbTrip.reisecode,
-          produktcode: dbTrip.produktcode || '',
-          reise: dbTrip.reise,
-          datum: dbTrip.datum,
-          uhrzeit: dbTrip.uhrzeit || '',
-          kontingent: dbTrip.kontingent || 0,
-          buchungen: dbTrip.buchungen || 0,
-          planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
-          groupId: dbTrip.group_id,
-          busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
-          storedStops: dbTrip.stops || null, // Store for later use
-        };
-      });
-      
-      // Merge stops data from database for planned trips
-      console.log('[Index] 🔍 Merging stops from database...');
-      const newStops: Stop[] = [];
-      
-      mappedTrips.forEach((trip: any) => {
-        if (trip.storedStops && Array.isArray(trip.storedStops) && trip.storedStops.length > 0) {
-          console.log(`[Index] 🔍 Adding ${trip.storedStops.length} stops from DB for ${trip.reisecode}`);
-          console.log(`[Index] 🔍 First stop: "${trip.storedStops[0]?.['Zustieg/Ausstieg']}" with ${trip.storedStops[0]?.Anzahl} PAX`);
-          
-          // Add these stops to our collection
-          newStops.push(...trip.storedStops);
-        } else {
-          console.log(`[Index] 🔍 No stored stops found for ${trip.reisecode}`);
-        }
-      });
-      
-      // Update stops array in one operation - replace stops for planned trips, keep API stops for unplanned
-      if (newStops.length > 0) {
-        setStops(prevStops => {
-          // Get reisecodes from mapped trips
-          const plannedReisecodes = new Set(mappedTrips.map((t: any) => t.reisecode));
-          // Keep only unplanned trip stops, add all planned trip stops from DB
-          const unplannedStops = prevStops.filter(s => !plannedReisecodes.has(s.Reisecode));
-          console.log(`[Index] ✅ Updating stops: ${unplannedStops.length} unplanned + ${newStops.length} planned = ${unplannedStops.length + newStops.length} total`);
-          return [...unplannedStops, ...newStops];
-        });
-      }
-      
-      return mappedTrips.map(({ storedStops, ...trip }) => trip);
+      return data.map((dbTrip: any) => ({
+        id: dbTrip.id,
+        direction: dbTrip.direction as 'hin' | 'rueck',
+        reisecode: dbTrip.reisecode,
+        produktcode: dbTrip.produktcode || '',
+        reise: dbTrip.reise,
+        datum: dbTrip.datum,
+        uhrzeit: dbTrip.uhrzeit || '',
+        kontingent: dbTrip.kontingent || 0,
+        buchungen: dbTrip.buchungen || 0,
+        planningStatus: (dbTrip.status || 'unplanned') as 'unplanned' | 'draft' | 'completed' | 'locked',
+        groupId: dbTrip.group_id,
+        busDetails: dbTrip.group_id ? busGroupsMap.get(dbTrip.group_id) || null : null,
+      }));
     } catch (error) {
       console.error('[Index] Error loading planned trips:', error);
       return [];
@@ -220,34 +165,12 @@ const Index = () => {
       const result: APIResponse = await response.json();
 
       if (result.success && result.data) {
+        setStops(result.data.stops);
+        
         // Create a Set of planned trip keys for efficient lookup
-        // Format: "REISECODE-HIN" or "REISECODE-RUECK" to match tripKey format below
         const plannedReisecodes = new Set(
-          plannedTrips.map(t => `${t.reisecode}-${t.direction === 'hin' ? 'HIN' : 'RUECK'}`)
+          plannedTrips.map(t => `${t.reisecode}-${t.direction.toUpperCase()}`)
         );
-        
-        console.log('[Index] 🔍 Planned trip keys:', Array.from(plannedReisecodes));
-        
-        // Merge API stops with existing DB stops - don't overwrite planned trip stops
-        setStops(prevStops => {
-          const apiStops = result.data.stops;
-          
-          // Helper to generate trip key from stop
-          const getStopTripKey = (stop: Stop) => {
-            const direction = stop.Beförderung?.toLowerCase().includes('hinfahrt') ? 'HIN' : 'RUECK';
-            return `${stop.Reisecode}-${direction}`;
-          };
-          
-          // Keep existing stops for planned trips (from database with hub modifications)
-          const plannedStops = prevStops.filter(s => plannedReisecodes.has(getStopTripKey(s)));
-          
-          // Only add API stops for unplanned trips
-          const unplannedStops = apiStops.filter(s => !plannedReisecodes.has(getStopTripKey(s)));
-          
-          console.log(`[Index] 🔄 Merging stops: ${plannedStops.length} from DB (planned) + ${unplannedStops.length} from API (unplanned) = ${plannedStops.length + unplannedStops.length} total`);
-          
-          return [...plannedStops, ...unplannedStops];
-        });
         
         const unplannedTrips: Trip[] = [];
         
@@ -482,7 +405,7 @@ const Index = () => {
         tripNumber: null, // trip_number is only in bus_groups
       }));
       
-      await createTrips(tripsToCreate, user.id, stops);
+      await createTrips(tripsToCreate, user.id);
       
       setSelectedTrips(new Set());
       setNextGroupId(nextGroupId + 1);
@@ -516,21 +439,6 @@ const Index = () => {
       console.error('[Index] Error updating group:', error);
       toast.error('Fehler beim Aktualisieren');
     }
-  };
-
-  const handleHubCreated = async () => {
-    console.log('[Index] Hub created/updated - forcing complete data refresh');
-    
-    // Clear stops to force complete rebuild
-    setStops([]);
-    
-    // Reload everything from database
-    await loadAllData();
-    
-    // Force React to re-render with new key
-    setRefreshKey(prev => prev + 1);
-    
-    console.log('[Index] Hub refresh complete');
   };
 
   const handleSplitGroup = async (groupId: string, splitGroups: any[]) => {
@@ -618,7 +526,7 @@ const Index = () => {
           groupId: newGroupId,
         }));
         
-        await createTrips(tripsToInsert, user.id, stops);
+        await createTrips(tripsToInsert, user.id);
         console.log(`[Index] Created ${tripsToInsert.length} trips for group ${tripNumber}`);
       }
       
@@ -964,7 +872,7 @@ const Index = () => {
       dateKey,
       plannedGroups: sortGroupsWithSplits(plannedGroupsByDate[dateKey] || []),
       hinfahrten: hinfahrtenByDate[dateKey] || [],
-      rueckfahrten: rueckfahrtenByDate[dateKey] || [],
+      rueckfahrten: rueckfahrtenByDate[addDays(dateKey, 1)] || [],
     }));
   };
 
@@ -1000,7 +908,7 @@ const Index = () => {
       <div className="max-w-[1800px] mx-auto bg-card/95 backdrop-blur-sm rounded-2xl p-8 shadow-2xl">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-5xl font-bold gradient-primary bg-clip-text text-transparent">
-            🚌 E&P Busplanungs-Management System
+            🚌 Busplanungs-Management System 5.1
           </h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user.email}</span>
@@ -1068,10 +976,7 @@ const Index = () => {
                   rueckfahrten={rueckfahrten}
                   nextDayKey={nextDayKey}
                   stops={stops}
-                  allTrips={trips}
-                  allBusGroups={busGroups}
                   selectedTrips={selectedTrips}
-                  refreshKey={refreshKey}
                   onToggleSelection={toggleSelection}
                   onUpdateGroup={updateGroup}
                   onCompleteGroup={completeGroup}
@@ -1080,7 +985,6 @@ const Index = () => {
                   onUnlockGroup={unlockGroup}
                   onDissolveGroup={dissolveGroup}
                   onSplitGroup={handleSplitGroup}
-                  onHubCreated={handleHubCreated}
                 />
               );
             })
