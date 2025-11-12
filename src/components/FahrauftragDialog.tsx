@@ -171,13 +171,27 @@ export function FahrauftragDialog({
             <h4 className="font-semibold mb-3">📍 Haltestellen ({stops.length})</h4>
             {stops.length > 0 ? (
               <div className="space-y-1 max-h-48 overflow-y-auto">
-                {stops.map((stop, index) => (
-                  <div key={index} className="flex items-center gap-3 text-sm py-1">
-                    <span className="font-mono text-muted-foreground w-16">{stop.Zeit}</span>
-                    <span className="flex-1">{stop['Zustieg/Ausstieg'] || 'Unbekannt'}</span>
-                    <Badge variant="secondary" className="text-xs">{stop.Anzahl} PAX</Badge>
-                  </div>
-                ))}
+                {stops
+                  .sort((a, b) => {
+                    // Convert time strings to comparable values
+                    // Times before 06:00 are treated as next day (+24h)
+                    const getTimeValue = (time: string) => {
+                      const [hours, minutes] = time.split(':').map(Number);
+                      return hours < 6 ? hours + 24 : hours;
+                    };
+                    
+                    const timeA = getTimeValue(a.Zeit || '00:00');
+                    const timeB = getTimeValue(b.Zeit || '00:00');
+                    
+                    return timeA - timeB;
+                  })
+                  .map((stop, index) => (
+                    <div key={index} className="flex items-center gap-3 text-sm py-1">
+                      <span className="font-mono text-muted-foreground w-16">{stop.Zeit}</span>
+                      <span className="flex-1">{stop['Zustieg/Ausstieg'] || 'Unbekannt'}</span>
+                      <Badge variant="secondary" className="text-xs">{stop.Anzahl} PAX</Badge>
+                    </div>
+                  ))}
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">Keine Haltestellen vorhanden</p>
