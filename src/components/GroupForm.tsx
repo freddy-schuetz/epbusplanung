@@ -27,6 +27,8 @@ interface GroupFormProps {
   onUpdateGroup: (groupId: string, updates: Partial<Trip>) => void;
   onCompleteGroup: (groupId: string) => void;
   onSetGroupToDraft: (groupId: string) => void;
+  onLockGroup: (groupId: string) => void;
+  onUnlockGroup: (groupId: string) => void;
   onDissolveGroup: (groupId: string) => void;
   onSplitGroup: (groupId: string, splitGroups: any[]) => void;
 }
@@ -38,6 +40,8 @@ export const GroupForm = ({
   onUpdateGroup,
   onCompleteGroup,
   onSetGroupToDraft,
+  onLockGroup,
+  onUnlockGroup,
   onDissolveGroup,
   onSplitGroup,
 }: GroupFormProps) => {
@@ -445,18 +449,40 @@ export const GroupForm = ({
         </div>
       </div>
 
-      {!isLocked ? (
+      {firstTrip.planningStatus === 'locked' ? (
+        <div className="space-y-3">
+          <Alert>
+            <AlertDescription>🔒 Diese Busplanung ist gesperrt.</AlertDescription>
+          </Alert>
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={() => onUnlockGroup(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+              🔓 Entsperren
+            </Button>
+            <Button onClick={() => setShowFahrauftragDialog(true)} className="gradient-primary">
+              📋 Fahrauftrag erstellen
+            </Button>
+            <Button 
+              onClick={() => {
+                if (confirm('⚠️ Diese Busplanung ist gesperrt. Trotzdem auflösen?')) {
+                  onDissolveGroup(groupId);
+                }
+              }} 
+              variant="destructive"
+            >
+              ❌ Auflösen
+            </Button>
+          </div>
+        </div>
+      ) : (
         <div className="flex gap-3 flex-wrap">
           <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
             💾 Speichern
           </Button>
-          {firstTrip.planningStatus === 'completed' || firstTrip.planningStatus === 'locked' ? (
+          {firstTrip.planningStatus === 'completed' ? (
             <>
-              {firstTrip.planningStatus === 'completed' && (
-                <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
-                  ↩️ Zurück auf Entwurf
-                </Button>
-              )}
+              <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+                ↩️ Zurück auf Entwurf
+              </Button>
               <Button onClick={() => setShowFahrauftragDialog(true)} className="gradient-primary">
                 📋 Fahrauftrag erstellen
               </Button>
@@ -470,10 +496,6 @@ export const GroupForm = ({
             ❌ Auflösen
           </Button>
         </div>
-      ) : (
-        <Alert>
-          <AlertDescription>🔒 Diese Busplanung ist gesperrt.</AlertDescription>
-        </Alert>
       )}
 
       <SplitDialog

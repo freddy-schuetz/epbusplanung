@@ -349,6 +349,8 @@ export const GroupCard = ({
             onUpdateGroup={onUpdateGroup}
             onCompleteGroup={onCompleteGroup}
             onSetGroupToDraft={onSetGroupToDraft}
+            onLockGroup={onLockGroup}
+            onUnlockGroup={onUnlockGroup}
             onDissolveGroup={onDissolveGroup}
             onSplitGroup={onSplitGroup}
           />
