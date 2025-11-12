@@ -450,11 +450,13 @@ export const GroupForm = ({
           <Button onClick={handleSave} className="bg-success text-success-foreground hover:bg-success/90">
             💾 Speichern
           </Button>
-          {firstTrip.planningStatus === 'completed' ? (
+          {firstTrip.planningStatus === 'completed' || firstTrip.planningStatus === 'locked' ? (
             <>
-              <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
-                ↩️ Zurück auf Entwurf
-              </Button>
+              {firstTrip.planningStatus === 'completed' && (
+                <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+                  ↩️ Zurück auf Entwurf
+                </Button>
+              )}
               <Button onClick={() => setShowFahrauftragDialog(true)} className="gradient-primary">
                 📋 Fahrauftrag erstellen
               </Button>
