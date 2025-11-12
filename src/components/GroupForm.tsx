@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { parseGermanDate, addDays } from '@/lib/dateUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SplitDialog, SplitGroup } from './SplitDialog';
+import { FahrauftragDialog } from './FahrauftragDialog';
 
 interface GroupFormProps {
   groupId: string;
@@ -68,6 +69,7 @@ export const GroupForm = ({
     notes: firstTrip.busDetails?.notes || '',
   });
   const [showSplitDialog, setShowSplitDialog] = useState(false);
+  const [showFahrauftragDialog, setShowFahrauftragDialog] = useState(false);
 
   const maxBusCapacity = Math.max(...buses.map(b => b.seats), 61);
   
@@ -449,9 +451,14 @@ export const GroupForm = ({
             💾 Speichern
           </Button>
           {firstTrip.planningStatus === 'completed' ? (
-            <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
-              ↩️ Zurück auf Entwurf
-            </Button>
+            <>
+              <Button onClick={() => onSetGroupToDraft(groupId)} className="bg-warning text-warning-foreground hover:bg-warning/90">
+                ↩️ Zurück auf Entwurf
+              </Button>
+              <Button onClick={() => setShowFahrauftragDialog(true)} className="gradient-primary">
+                📋 Fahrauftrag erstellen
+              </Button>
+            </>
           ) : (
             <Button onClick={handleComplete} className="gradient-primary">
               ✅ Fertigstellen
@@ -474,6 +481,15 @@ export const GroupForm = ({
         stops={groupStops}
         buses={buses}
         onSplit={handleSplit}
+      />
+
+      <FahrauftragDialog
+        isOpen={showFahrauftragDialog}
+        onClose={() => setShowFahrauftragDialog(false)}
+        groupId={groupId}
+        trips={trips}
+        busDetails={busDetails}
+        stops={groupStops}
       />
     </div>
   );
