@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Trip, BusDetails, Stop } from '@/types/bus';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { parseGermanDate, formatDate, addDays } from '@/lib/dateUtils';
 
 interface FahrauftragDialogProps {
   isOpen: boolean;
@@ -32,16 +34,49 @@ export function FahrauftragDialog({
 }: FahrauftragDialogProps) {
   const [sending, setSending] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [busInfo, setBusInfo] = useState<{ name: string; seats: number } | null>(null);
   
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
+  
+  // Load bus information from database
+  useEffect(() => {
+    const loadBusInfo = async () => {
+      if (busDetails.busId) {
+        const { data, error } = await supabase
+          .from('buses')
+          .select('name, seats')
+          .eq('id', busDetails.busId)
+          .single();
+        
+        if (data && !error) {
+          setBusInfo(data);
+        }
+      }
+    };
+    
+    loadBusInfo();
+  }, [busDetails.busId]);
   
   const handleSend = async () => {
     setSending(true);
     
+    // Calculate date for each stop based on time and base date
+    const calculateStopDate = (baseDate: string, stopTime: string) => {
+      const [hours] = stopTime.split(':').map(Number);
+      // If stop time is before 06:00, it's the next day
+      if (hours < 6) {
+        return addDays(baseDate, 1);
+      }
+      return baseDate;
+    };
+    
+    // Get the earliest trip date as base date
+    const baseDate = trips.length > 0 ? trips[0].datum : formatDate(new Date());
+    
     const payload = {
       busGroup: {
         id: groupId,
-        trip_number: busDetails.tripNumber || groupId,
+        trip_number: String(busDetails.tripNumber || groupId),
         status: trips[0]?.planningStatus || 'completed',
         date: new Date().toISOString()
       },
@@ -56,21 +91,35 @@ export function FahrauftragDialog({
         kontingent: t.kontingent
       })),
       busDetails: {
-        busId: busDetails.busId,
+        busName: busInfo?.name || busDetails.busId || 'Nicht zugewiesen',
+        busCapacity: busInfo?.seats || 0,
+        luggage: busDetails.luggage || 'ohne',
         kmHinweg: busDetails.kmHinweg,
         kmRueckweg: busDetails.kmRueckweg,
-        luggage: busDetails.luggage,
         accommodation: busDetails.accommodation,
         notes: busDetails.notes,
-        tripNumber: busDetails.tripNumber
+        tripNumber: String(busDetails.tripNumber || ''),
+        reiseleiter: 'Wird noch bekannt gegeben',
+        reiseleiterTelefon: '',
+        busDriver: 'Wird noch bekannt gegeben',
+        arrivalTime: trips.find(t => t.direction === 'hin')?.uhrzeit || ''
       },
-      stops: stops.map(s => ({
-        reisecode: s.Reisecode,
-        name: s['Zustieg/Ausstieg'],
-        time: s.Zeit,
-        passengers: s.Anzahl,
-        type: s.Beförderung
-      })),
+      stops: stops
+        .sort((a, b) => {
+          const getTimeValue = (time: string) => {
+            const [hours] = time.split(':').map(Number);
+            return hours < 6 ? hours + 24 : hours;
+          };
+          return getTimeValue(a.Zeit || '00:00') - getTimeValue(b.Zeit || '00:00');
+        })
+        .map(s => ({
+          reisecode: s.Reisecode,
+          name: s['Zustieg/Ausstieg'],
+          time: s.Zeit,
+          date: calculateStopDate(baseDate, s.Zeit || '00:00'),
+          passengers: s.Anzahl,
+          type: s.Beförderung
+        })),
       recipientEmail: recipientEmail,
       createdAt: new Date().toISOString()
     };
