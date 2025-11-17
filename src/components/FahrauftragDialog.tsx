@@ -8,6 +8,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Trip, BusDetails, Stop } from '@/types/bus';
 import { toast } from 'sonner';
 
@@ -29,6 +31,7 @@ export function FahrauftragDialog({
   stops 
 }: FahrauftragDialogProps) {
   const [sending, setSending] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
   
   const totalPassengers = trips.reduce((sum, t) => sum + t.buchungen, 0);
   
@@ -68,6 +71,7 @@ export function FahrauftragDialog({
         passengers: s.Anzahl,
         type: s.Beförderung
       })),
+      recipientEmail: recipientEmail,
       createdAt: new Date().toISOString()
     };
     
@@ -114,6 +118,20 @@ export function FahrauftragDialog({
                 </Badge>
               </div>
             </div>
+          </div>
+          
+          <div className="bg-card border rounded-lg p-4">
+            <Label htmlFor="recipient-email" className="font-semibold mb-2 block">
+              📧 Empfänger E-Mail-Adresse
+            </Label>
+            <Input
+              id="recipient-email"
+              type="email"
+              placeholder="beispiel@busunternehmen.de"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              className="w-full"
+            />
           </div>
           
           <div className="bg-card border rounded-lg p-4">
